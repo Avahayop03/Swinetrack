@@ -58,6 +58,7 @@ export default function SignUp() {
                 />
               </View>
             </View>
+            /**hakdog */
 
             <View style={styles.field}>
               <Text style={styles.label}>Create Password</Text>
