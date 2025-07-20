@@ -1,27 +1,106 @@
 import React, { useState } from 'react';
 import {
-  View,
+  Alert,
+  AppState,
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Image,
-  Dimensions,
-  ScrollView,
+  View
 } from 'react-native';
+
+
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { supabase } from '../../assets/supabase';
 
+
+
+//s
 const { height } = Dimensions.get('window');
+
+AppState.addEventListener('change', (state) => {
+  if (state === 'active') {
+    supabase.auth.startAutoRefresh()
+  } else {
+    supabase.auth.stopAutoRefresh()
+  }
+})
 
 export default function LoginScreen() {
   const router = useRouter();
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false)
+
+ /* async function signInWithEmail() {
+  setLoading(true);
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    Alert.alert('Login Failed', error.message);
+    setLoading(false); // ensure loading is turned off on error
+  } else {
+    router.push('/(tabs)');
+    Alert.alert('Login Successful', 'Welcome back!');
+    setLoading(false); // also after successful login
+  }
+}
+
+ */
+
+
+
+
+  /*const handleLogin = () => {
+    console.log("login button pressed");
+    router.push('/(tabs)');
+  };*/
 
   const handleLogin = () => {
     console.log("login button pressed");
     router.push('/(tabs)');
-  };
+  }
+async function signInWithEmail() {
+  if (!email || !password) {
+    Alert.alert("Missing Input", "Email and password are required.");
+    return;
+  }
+
+  setLoading(true);
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    console.error("Login error:", error.message);
+    Alert.alert("Login Failed", error.message);
+    setLoading(false);
+    return;
+  }
+
+  // Confirm session
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+  setLoading(false);
+
+  if (sessionError || !sessionData.session) {
+    Alert.alert("Login Error", "Session could not be verified.");
+    return;
+  }
+
+  console.log("Login verified for:", sessionData.session.user.email);
+  Alert.alert("Login Successful", "Welcome back!");
+  router.push("/(tabs)");
+}
+
 
   return (
     <View style={styles.fullScreen}>
@@ -40,7 +119,8 @@ export default function LoginScreen() {
             placeholder="Email address"
             placeholderTextColor="#aaa"
             style={styles.input}
-            defaultValue="helloworld@gmail.com"
+            value={email} // bind to state
+            onChangeText={setEmail} // update state on change
             keyboardType="email-address"
           />
 
@@ -51,8 +131,10 @@ export default function LoginScreen() {
               placeholderTextColor="#aaa"
               style={[styles.input, { flex: 1 }]}
               secureTextEntry={!showPassword}
-              defaultValue="********"
+              value={password} // bind to state
+              onChangeText={setPassword} // update state on change
             />
+
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
               <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#888" />
             </TouchableOpacity>
@@ -62,13 +144,14 @@ export default function LoginScreen() {
             <Text style={{ color: '#999' }}>Forgot password?</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.submitBtn} onPress={handleLogin}>
-            <Text style={styles.submitText}>Log in</Text>
+          <TouchableOpacity style={styles.submitBtn} onPress={signInWithEmail}>
+            <Text style={styles.submitText}>{loading ? 'Logging in...' : 'Log in'}</Text>
           </TouchableOpacity>
+       
 
           <Text style={styles.orText}>Or Login with</Text>
 
-          <TouchableOpacity style={styles.googleBtn} onPress={handleLogin}>
+          <TouchableOpacity style={styles.googleBtn}>
             <Image
               source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' }}
               style={{ width: 20, height: 20 }}

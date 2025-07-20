@@ -1,8 +1,36 @@
-import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
+import { Session } from "@supabase/supabase-js";
 import { useRouter } from "expo-router";
+import React, { useEffect, useState } from 'react';
+import { AppState, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { supabase } from "../assets/supabase";
+
+AppState.addEventListener('change', (state) => {
+  if (state === 'active') {
+    supabase.auth.startAutoRefresh();
+  } else {
+    supabase.auth.stopAutoRefresh();
+  }
+});
 
 export default function WelcomePage() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <View style={styles.container}>

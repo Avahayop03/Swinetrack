@@ -1,4 +1,4 @@
-/*import { KeyboardAvoidingView, Platform, View,  Text, TextInput} from "react-native";
+/*import { KeyboardAvoidingView, Platform, Text, TextInput, View } from "react-native";
 
 export default function AuthScreen(){
     return (<KeyboardAvoidingView behavior={Platform.OS === "android" ? "padding" : "height"}> 
