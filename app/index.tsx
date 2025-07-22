@@ -10,6 +10,10 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
 export default function WelcomePage() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   //WELCOME PAGE NI SYA GUYS
   
   const router = useRouter();
