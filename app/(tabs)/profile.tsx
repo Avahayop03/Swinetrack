@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
  
   profileCard: {
     backgroundColor: '#487307',
-    padding: 40,
+    padding: 50,
     alignItems: 'center',
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
