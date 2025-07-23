@@ -5,6 +5,7 @@ import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import { View } from 'react-native';
 
 
+
 export default function TabsLayout() {
   return (
     <Tabs
