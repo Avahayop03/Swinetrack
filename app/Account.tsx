@@ -2,7 +2,7 @@ import { Session } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
 import { Alert, StyleSheet, View } from 'react-native'
 import { Button, TextInput } from 'react-native-paper'
-import { supabase } from '../assets/supabase'
+import { supabase } from '../android/src/utils/supabase'
 
 export default function Account({ session }: { session: Session }) {
   const [loading, setLoading] = useState(true)

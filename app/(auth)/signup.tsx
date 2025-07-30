@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { supabase } from '../../assets/supabase';
+import { supabase } from '../../android/src/utils/supabase';
 
 AppState.addEventListener('change', (state) => {
   if (state === 'active') {

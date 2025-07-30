@@ -8,32 +8,43 @@ import {
   SafeAreaView,
   ScrollView,
   StatusBar,
+  Alert,
 } from 'react-native';
-import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-
-
 export default function ProfileScreen() {
-
   const router = useRouter();
 
   const handleLogout = () => {
-    router.push("/(auth)/login")
-  }
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Yes',
+          onPress: () => router.push("/(auth)/login"),
+          style: 'destructive',
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   return (
     <SafeAreaView style={styles.screen}>
-            <StatusBar barStyle="light-content" />
-      
+      <StatusBar barStyle="light-content" />
+
       <ScrollView contentContainerStyle={styles.container}>
-        {/* Header */}
-       
         {/* Profile Section */}
         <View style={styles.profileCard}>
-            
           <View style={styles.avatarContainer}>
             <Image
-              source={{ uri: 'https://via.placeholder.com/100' }} // replace with real image
+              source={{ uri: 'https://via.placeholder.com/100' }} // Replace with real image
               style={styles.avatar}
             />
             <TouchableOpacity style={styles.editIcon}>
@@ -65,16 +76,15 @@ export default function ProfileScreen() {
             <Text style={styles.optionText}>Notification Settings</Text>
           </TouchableOpacity>
 
-
-          <TouchableOpacity style={[styles.option, { marginTop: 10 }]}
-          onPress={handleLogout}>
+          <TouchableOpacity
+            style={[styles.option, { marginTop: 10 }]}
+            onPress={handleLogout}
+          >
             <Feather name="log-out" size={20} color="red" />
             <Text style={[styles.optionText, { color: 'red' }]}>Log out</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
-
-      
     </SafeAreaView>
   );
 }
@@ -88,7 +98,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: '#fff',
   },
- 
   profileCard: {
     backgroundColor: '#487307',
     padding: 50,
@@ -96,7 +105,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     marginBottom: 20,
-    paddingTop:50
+    paddingTop: 50,
   },
   avatarContainer: {
     position: 'relative',
@@ -140,5 +149,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  
 });

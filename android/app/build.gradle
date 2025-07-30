@@ -174,4 +174,11 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    implementation 'com.google.android.gms:play-services-location:21.3.0'
+    implementation 'com.google.android.gms:play-services-auth:20.7.0'
+
+   
 }
+apply plugin: 'com.android.application'
+apply plugin: 'com.google.gms.google-services'

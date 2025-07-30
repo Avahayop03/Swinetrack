@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "74421870640",
+    "project_id": "swinetrack-d4c6f",
+    "storage_bucket": "swinetrack-d4c6f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:74421870640:android:71aaa7c3a7549ff2e48df5",
+        "android_client_info": {
+          "package_name": "com.anonymous.swinetrack"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC40J391qq8AZIQvcJPBZ-3x6QkXPgQKq8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

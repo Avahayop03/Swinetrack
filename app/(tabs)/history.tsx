@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, StatusBar, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, StatusBar, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const screenWidth = Dimensions.get('window').width;
@@ -30,12 +30,15 @@ export default function HistoryScreen() {
 
       {/* Green Header */}
       <View style={styles.header}>
-      
-
+        <View style={styles.headerTopRow}>
+                  <Image
+                    source={require('./swinetrack-logo.png')}
+                    style={styles.logo}
+                  />
+          </View>
         <Text style={styles.welcomeText}>Welcome back, User!</Text>
         <Text style={styles.subText}>View your pig's status history here.</Text>
         <View style={styles.divider} />
-
       </View>
 
       {/* Content */}
@@ -89,7 +92,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#487307',
-    paddingTop: 70,
+    paddingTop: 30,
     paddingBottom: 50,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 20,
@@ -101,16 +104,38 @@ const styles = StyleSheet.create({
     right: 20,
     top: 30,
   },
+ headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+  },
+  logoCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 60,
+    height: 55,
+    resizeMode: 'contain',
+    marginLeft: -20,
+     marginTop: 10,
+  },
   welcomeText: {
-    fontSize: 30,
+    fontSize: 25,
     fontWeight: 'bold',
     color: '#fff',
-    marginTop: 40,
+    marginTop: 2,
+    marginLeft: 15,
   },
   subText: {
-    fontSize: 15,
-    color: '#d9ffd3',
-    marginTop: 10,
+    fontSize: 14,
+    color: '#d8f2c1',
+    marginTop: 4,
+    marginLeft: 15,
   },
   content: {
     padding: 16,

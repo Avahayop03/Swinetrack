@@ -1,13 +1,14 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  Image,
+  ScrollView,
   StyleSheet,
   Text,
-  View,
   TouchableOpacity,
-  ScrollView,
+  View,
 } from 'react-native';
-import { supabase } from '../../assets/supabase';
+import { supabase } from '../../android/src/utils/supabase';
 
 export default function Index() {
   const router = useRouter();
@@ -26,6 +27,12 @@ export default function Index() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <View style={styles.headerTopRow}>
+          <Image
+            source={require('./swinetrack-logo.png')}
+            style={styles.logo}
+          />
+        </View>
         <Text style={styles.welcomeText}>Welcome back, User!</Text>
         <Text style={styles.subText}>Today's pig status</Text>
       </View>
@@ -53,7 +60,7 @@ export default function Index() {
               <Text style={styles.noFeedText}>📷 No camera feed today</Text>
             </View>
 
-            {/* Pen Status Section*/}
+            {/* Pen Status Section */}
             <Text style={styles.penStatusTitle}>Pen Status</Text>
             <View style={styles.statusCard}>
               <View style={styles.cardHeader}>
@@ -103,15 +110,43 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
+ menuIcon: {
+    position: 'absolute',
+    right: 20,
+    top: 30,
+  },
+ headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+  },
+  logoCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 60,
+    height: 55,
+    resizeMode: 'contain',
+    marginLeft: -20,
+     marginTop: 10,
+  },
   welcomeText: {
-    fontSize: 22,
+    fontSize: 25,
     fontWeight: 'bold',
     color: '#fff',
+    marginTop: 2,
+    marginLeft: 15,
   },
   subText: {
     fontSize: 14,
     color: '#d8f2c1',
     marginTop: 4,
+    marginLeft: 15,
   },
   tabs: {
     flexDirection: 'row',
