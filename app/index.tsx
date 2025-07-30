@@ -1,10 +1,10 @@
 
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, AppState, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useFonts } from 'expo-font';
-import { supabase } from '../assets/supabase';
 import { Session } from '@supabase/supabase-js';
+import { useFonts } from 'expo-font';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, AppState, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { supabase } from '../android/src/utils/supabase';
 
 // Start or stop session auto-refresh
 AppState.addEventListener('change', (state) => {

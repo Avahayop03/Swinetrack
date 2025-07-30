@@ -1,25 +1,23 @@
   import React, { useState } from 'react';
-  import {
-    Alert,
-    AppState,
-    Dimensions,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
-  } from 'react-native';
+import {
+  Alert,
+  AppState,
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
 
   import { Ionicons } from '@expo/vector-icons';
-  import { useRouter } from 'expo-router';
-  import { supabase } from '../../assets/supabase';
-
-
-
-  //s
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { useRouter } from 'expo-router';
+import { supabase } from '../../android/src/utils/supabase';
+import GoogleAuth from '../components/GoogleAuth';
   const { height } = Dimensions.get('window');
 
   AppState.addEventListener('change', (state) => {
@@ -31,6 +29,16 @@
   })
 
   export default function LoginScreen() {
+
+    React.useEffect(() => {
+  GoogleSignin.configure({
+    scopes: ["https://www.googleapis.com/auth/drive.readonly"],
+    webClientId: "737013590495-p2gb2hg6i853l9h0n3080tecsa7o5304.apps.googleusercontent.com", // Replace with your web client ID
+    offlineAccess: true, // If you want to access Google Drive offline
+
+  });
+}, []);
+
     const router = useRouter();
 
     const [email, setEmail] = useState('')
@@ -102,6 +110,8 @@
   }
 
 
+
+
     return (
       <View style={styles.fullScreen}>
         <ScrollView contentContainerStyle={styles.scrollView} keyboardShouldPersistTaps="handled">
@@ -149,14 +159,12 @@
             </TouchableOpacity>
         
 
-            <Text style={styles.orText}>Or Login with</Text>
-
-            <TouchableOpacity style={styles.googleBtn}>
-              <Image
-                source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' }}
-                style={{ width: 20, height: 20 }}
-              />
-            </TouchableOpacity>
+        
+            <Text style={styles.orText}>Or Sign in with</Text>
+             <View style={styles.googleBtn}>
+               
+               <GoogleAuth />
+             </View>
 
             <View style={styles.footerRow}>
               <Text style={styles.footer}>Don’t have an account? </Text>
