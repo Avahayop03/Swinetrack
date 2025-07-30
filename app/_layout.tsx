@@ -27,7 +27,7 @@ function RouteGuard({children}: { children: React.ReactNode}) {
   });
 
   return <>{children}</>;
-}git
+}
 
 export default function RootLayout() {
   return (

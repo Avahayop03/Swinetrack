@@ -76,6 +76,8 @@ export default function ProfileScreen() {
             <Text style={styles.optionText}>Notification Settings</Text>
           </TouchableOpacity>
 
+
+       
           <TouchableOpacity
             style={[styles.option, { marginTop: 10 }]}
             onPress={handleLogout}
