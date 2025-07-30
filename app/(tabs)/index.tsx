@@ -1,14 +1,14 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  Image,
+  ScrollView,
   StyleSheet,
   Text,
-  View,
   TouchableOpacity,
-  ScrollView,
-  Image,
+  View,
 } from 'react-native';
-import { supabase } from '../../assets/supabase';
+import { supabase } from '../../android/src/utils/supabase';
 
 export default function Index() {
   const router = useRouter();

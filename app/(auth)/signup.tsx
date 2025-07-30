@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { supabase } from '../../assets/supabase';
+import { supabase } from '../../android/src/utils/supabase';
 
 AppState.addEventListener('change', (state) => {
   if (state === 'active') {
@@ -38,34 +38,33 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
 
   async function signUpWithEmail() {
-  if (password !== confirmPassword) {
-    Alert.alert('Passwords do not match.');
-    return;
-  }
+    if (password !== confirmPassword) {
+      Alert.alert('Passwords do not match.');
+      return;
+    }
 
-  setLoading(true);
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name: fullName,
-        phone: phone,
-        avatar_url: '', // optional
+    setLoading(true);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          phone: phone,
+          avatar_url: '',
+        },
       },
-    },
-  });
+    });
 
-  setLoading(false);
+    setLoading(false);
 
-  if (error) {
-    Alert.alert('Error', error.message);
-  } else {
-    Alert.alert('Success', 'Account created! Please check your email to verify your account.');
-    router.replace('/(auth)/login'); // Auto redirect to login screen
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      Alert.alert('Success', 'Account created! Please check your email to verify your account.');
+      router.replace('/(auth)/login');
+    }
   }
-}
-
 
   return (
     <View style={styles.fullScreen}>
@@ -120,16 +119,18 @@ export default function SignUp() {
                   placeholder="Must be 8 characters"
                   placeholderTextColor="#aaa"
                   secureTextEntry={!showPassword}
-                  style={[styles.input, { flex: 1 }]}
+                  style={styles.passwordInput}
                   value={password}
                   onChangeText={setPassword}
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <TouchableOpacity 
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeIcon}
+                >
                   <Ionicons
                     name={showPassword ? 'eye-off' : 'eye'}
                     size={20}
                     color="#555"
-                    style={styles.eye}
                   />
                 </TouchableOpacity>
               </View>
@@ -143,16 +144,18 @@ export default function SignUp() {
                   placeholder="Repeat password"
                   placeholderTextColor="#aaa"
                   secureTextEntry={!showRepeatPassword}
-                  style={[styles.input, { flex: 1 }]}
+                  style={styles.passwordInput}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                 />
-                <TouchableOpacity onPress={() => setShowRepeatPassword(!showRepeatPassword)}>
+                <TouchableOpacity 
+                  onPress={() => setShowRepeatPassword(!showRepeatPassword)}
+                  style={styles.eyeIcon}
+                >
                   <Ionicons
                     name={showRepeatPassword ? 'eye-off' : 'eye'}
                     size={20}
                     color="#555"
-                    style={styles.eye}
                   />
                 </TouchableOpacity>
               </View>
@@ -164,18 +167,9 @@ export default function SignUp() {
               onPress={signUpWithEmail}
               disabled={loading}
             >
-              <Text style={styles.primaryText} >
+              <Text style={styles.primaryText}>
                 {loading ? 'Creating Account...' : 'Create Account'}
               </Text>
-            </TouchableOpacity>
-
-            <Text style={styles.or}>Or Register with</Text>
-
-            <TouchableOpacity style={styles.googleButton}>
-              <Image
-                source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' }}
-                style={{ width: 20, height: 20 }}
-              />
             </TouchableOpacity>
 
             <View style={styles.footerRow}>
@@ -254,9 +248,16 @@ const styles = StyleSheet.create({
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 10,
+    paddingRight: 10,
   },
-  eye: {
-    marginLeft: 10,
+  passwordInput: {
+    flex: 1,
+    padding: 12,
+    fontSize: 14,
+  },
+  eyeIcon: {
     padding: 5,
   },
   primaryButton: {
@@ -270,18 +271,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
     fontWeight: 'bold',
-  },
-  or: {
-    marginVertical: 12,
-    fontSize: 13,
-  },
-  googleButton: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    borderRadius: 20,
-    width: '100%',
-    alignItems: 'center',
   },
   footerRow: {
     flexDirection: 'row',
