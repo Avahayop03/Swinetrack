@@ -46,15 +46,25 @@ export default function ProfileScreen() {
 
         {/* Settings Options */}
         <View style={styles.options}>
-          <TouchableOpacity style={styles.option}>
-            <Feather name="user" size={20} color="#333" />
+
+          <TouchableOpacity style={styles.option}
+          onPress={() => router.push("/(modals)/account-settings")}>
+
+            <Feather name="user" size={20} color="#333"
+/>
             <Text style={styles.optionText}>Account Settings</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.option}>
+          <TouchableOpacity
+            style={styles.option}
+            onPress={() => router.push("/(modals)/notification-settings")}
+    
+          >
+
             <Feather name="bell" size={20} color="#333" />
             <Text style={styles.optionText}>Notification Settings</Text>
           </TouchableOpacity>
+
 
           <TouchableOpacity style={[styles.option, { marginTop: 10 }]}
           onPress={handleLogout}>

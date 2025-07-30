@@ -11,7 +11,7 @@ function RouteGuard({children}: { children: React.ReactNode}) {
     }
   });
   return <>{children}</>;
-}
+}git
 
 
 export default function RootLayout() {
@@ -21,6 +21,8 @@ export default function RootLayout() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(modals)" options={{ headerShown: false }} />
+
       </Stack>
 
   );
