@@ -46,72 +46,74 @@ export default function NotificationSettingsScreen() {
       <StatusBar barStyle="dark-content" />
       <ScrollView contentContainerStyle={styles.container}>
         {/* Notification Modes */}
-        <View style={styles.modeContainer}>
-          <TouchableOpacity
-            style={[
-              styles.modeBox,
-              notificationMode === 'default' && styles.selectedMode,
-            ]}
-            onPress={() => setNotificationMode('default')}
-          >
-            <Ionicons name="notifications-outline" size={18} color="#3D6D11" />
-            <Text style={styles.modeText}>Default</Text>
-            <Text style={styles.modeSubtext}>
-              May ring or vibrate based on phone settings
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.modeBox,
-              notificationMode === 'silent' && styles.selectedMode,
-            ]}
-            onPress={() => setNotificationMode('silent')}
-          >
-            <Ionicons name="notifications-off-outline" size={18} color="#777" />
-            <Text style={styles.modeText}>Silent</Text>
-          </TouchableOpacity>
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Notification Mode</Text>
+          <View style={styles.modeRow}>
+            <TouchableOpacity
+              style={[
+                styles.modeBox,
+                notificationMode === 'default' && styles.selectedMode,
+              ]}
+              onPress={() => setNotificationMode('default')}
+            >
+              <Ionicons name="notifications-outline" size={20} color="#3D6D11" />
+              <View style={{ marginLeft: 10 }}>
+                <Text style={styles.modeText}>Default</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.modeBox,
+                notificationMode === 'silent' && styles.selectedMode,
+              ]}
+              onPress={() => setNotificationMode('silent')}
+            >
+              <Ionicons name="notifications-off-outline" size={20} color="#777" />
+              <View style={{ marginLeft: 10 }}>
+                <Text style={styles.modeText}>Silent</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Toggle Items */}
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>Pop on screen</Text>
-          <Switch value={popOnScreen} onValueChange={setPopOnScreen} />
-        </View>
-
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>Sound</Text>
-          <Text style={styles.toggleNote}>Default notification sound</Text>
-        </View>
-
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>Vibration</Text>
-          <Switch value={vibration} onValueChange={setVibration} />
-        </View>
-
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>Lock screen</Text>
-          <Text style={styles.toggleNote}>Show all notification content</Text>
-        </View>
-
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>Show notification dot</Text>
-          <Switch value={notificationDot} onValueChange={setNotificationDot} />
-        </View>
-
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>Override Do Not Disturb</Text>
-          <Text style={styles.toggleNote}>
-            Let these notifications continue to interrupt when Do Not Disturb is on
-          </Text>
-          <Switch value={overrideDND} onValueChange={setOverrideDND} />
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Preferences</Text>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Pop on screen</Text>
+            <Switch value={popOnScreen} onValueChange={setPopOnScreen} />
+          </View>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Sound</Text>
+            <Text style={styles.toggleNote}>Default notification sound</Text>
+          </View>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Vibration</Text>
+            <Switch value={vibration} onValueChange={setVibration} />
+          </View>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Lock screen</Text>
+            <Text style={styles.toggleNote}>Show all notification content</Text>
+          </View>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Show notification dot</Text>
+            <Switch value={notificationDot} onValueChange={setNotificationDot} />
+          </View>
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleLabel}>Override Do Not Disturb</Text>
+              <Text style={styles.toggleNote}>
+                Let these notifications continue to interrupt when Do Not Disturb is on
+              </Text>
+            </View>
+            <Switch value={overrideDND} onValueChange={setOverrideDND} />
+          </View>
         </View>
 
         {/* Save Button */}
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
           <Text style={styles.saveButtonText}>Save Settings</Text>
         </TouchableOpacity>
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -120,56 +122,91 @@ export default function NotificationSettingsScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#F5F7FA', // match other screens
   },
   container: {
-    padding: 20,
-    paddingTop: 40,
+    padding: 16,
+    paddingBottom: 32,
   },
-  modeContainer: {
-    marginBottom: 30,
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#222',
+  },
+  modeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   modeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#eee',
     borderRadius: 8,
-    padding: 15,
-    marginBottom: 10,
+    padding: 12,
+    flex: 1,
+    marginRight: 8,
+    backgroundColor: '#fafbfc',
   },
   selectedMode: {
     borderColor: '#3D6D11',
     backgroundColor: '#eef8e8',
   },
   modeText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
-    marginTop: 5,
+    color: '#222',
   },
   modeSubtext: {
     fontSize: 12,
     color: '#666',
+    marginTop: 2,
   },
   toggleRow: {
-    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 18,
   },
   toggleLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
-    marginBottom: 5,
+    color: '#222',
+    flex: 1,
   },
   toggleNote: {
     fontSize: 12,
-    color: '#666',
+    color: '#888',
+    marginLeft: 8,
+    flex: 1,
   },
   saveButton: {
     backgroundColor: '#3D6D11',
-    padding: 15,
+    paddingVertical: 16,
     borderRadius: 8,
-    marginTop: 20,
     alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 30,
+    shadowColor: '#3D6D11',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
   },
   saveButtonText: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 16,
+    letterSpacing: 0.5,
   },
 });
