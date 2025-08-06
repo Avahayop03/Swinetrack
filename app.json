@@ -9,11 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
-      "googleServicesFile": "./google-services.json",
-      "package": "com.anonymous.swinetrack"
     },
     "web": {
       "bundler": "metro",
@@ -31,7 +28,8 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
