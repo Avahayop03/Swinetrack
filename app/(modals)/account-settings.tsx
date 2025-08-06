@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,23 +9,60 @@ import {
   StatusBar,
   ScrollView,
   Alert,
-} from 'react-native';
-import { useRouter } from 'expo-router';
+} from "react-native";
+import { useRouter } from "expo-router";
+import { supabase } from "../../android/src/utils/supabase";
 
 export default function AccountSettingsScreen() {
-  const [name, setName] = useState('Jennie Kim');
-  const [email, setEmail] = useState('jenniekim@gmail.com');
-  const [password, setPassword] = useState('');
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const router = useRouter();
 
-  const handleSave = () => {
-    const settings = { name, email, password };
-    console.log('Account settings saved:', settings);
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user) {
+        setName(data.user.user_metadata?.full_name || "");
+        setEmail(data.user.email || "");
+      }
+    };
+    fetchUser();
+  }, []);
 
-    Alert.alert('Changes Saved', 'Your account settings have been updated.', [
+  const handleSave = async () => {
+    let errorMsg = "";
+    // Update name in Supabase
+    const { error: nameError } = await supabase.auth.updateUser({
+      data: { full_name: name },
+    });
+    if (nameError) errorMsg += nameError.message + "\n";
+
+    // Update password in Supabase if provided
+    if (password) {
+      const { error: passError } = await supabase.auth.updateUser({
+        password,
+      });
+      if (passError) errorMsg += passError.message + "\n";
+    }
+
+    if (errorMsg) {
+      Alert.alert("Update Failed", errorMsg.trim());
+      return;
+    }
+
+    // Refetch user data from Supabase to update local state/UI
+    const { data } = await supabase.auth.getUser();
+    if (data?.user) {
+      setName(data.user.user_metadata?.full_name || "");
+      setEmail(data.user.email || "");
+    }
+    setPassword(""); // Clear password field
+
+    Alert.alert("Changes Saved", "Your account settings have been updated.", [
       {
-        text: 'OK',
-        onPress: () => router.back(), // Close the modal after alert
+        text: "OK",
+        onPress: () => router.back(),
       },
     ]);
   };
@@ -36,8 +73,12 @@ export default function AccountSettingsScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Edit Account</Text>
 
+        {/* Display current user info */}
+        <Text style={styles.name}>{name}</Text>
+        <Text style={styles.email}>{email}</Text>
+
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Full Name</Text>
+          <Text style={styles.label}>Name</Text>
           <TextInput
             value={name}
             onChangeText={setName}
@@ -50,8 +91,8 @@ export default function AccountSettingsScreen() {
           <Text style={styles.label}>Email</Text>
           <TextInput
             value={email}
-            onChangeText={setEmail}
-            style={styles.input}
+            style={[styles.input, { backgroundColor: "#eee", color: "#888" }]} // visually disabled            editable={false}
+            selectTextOnFocus={false}
             keyboardType="email-address"
             autoCapitalize="none"
             placeholder="Enter your email"
@@ -80,7 +121,7 @@ export default function AccountSettingsScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: "#f9f9f9",
   },
   container: {
     padding: 20,
@@ -88,37 +129,48 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 30,
-    color: '#333',
+    color: "#333",
+  },
+  name: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#3D6D11",
+    marginBottom: 2,
+  },
+  email: {
+    fontSize: 15,
+    color: "#555",
+    marginBottom: 20,
   },
   inputGroup: {
     marginBottom: 20,
   },
   label: {
     fontSize: 14,
-    color: '#555',
+    color: "#555",
     marginBottom: 5,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 8,
     paddingHorizontal: 15,
     paddingVertical: 10,
     fontSize: 16,
   },
   saveButton: {
-    backgroundColor: '#3D6D11',
+    backgroundColor: "#3D6D11",
     padding: 15,
     borderRadius: 8,
     marginTop: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   saveButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: "#fff",
+    fontWeight: "bold",
     fontSize: 16,
   },
 });

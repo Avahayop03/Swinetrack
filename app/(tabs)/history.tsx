@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, StatusBar, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '@/assets/supabase';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -21,6 +22,25 @@ const mockData = [
 
 export default function HistoryScreen() {
 
+    const [userName, setUserName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user) {
+        setUserName(
+          (data.user.user_metadata?.full_name
+            ? data.user.user_metadata.full_name.split(" ")[0]
+            : null) ||
+            data.user.email ||
+            "User"
+        );
+      }
+    };
+    fetchUser();
+  }, []);
+
+
   const handleExport = () => {
     console.log("export button pressed")
   }
@@ -36,7 +56,7 @@ export default function HistoryScreen() {
                     style={styles.logo}
                   />
           </View>
-        <Text style={styles.welcomeText}>Welcome back, User!</Text>
+        <Text style={styles.welcomeText}>Welcome back, {userName ? userName : 'User'}!</Text>
         <Text style={styles.subText}>View your pig's status history here.</Text>
         <View style={styles.divider} />
       </View>

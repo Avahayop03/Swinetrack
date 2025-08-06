@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,9 +12,23 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { supabase } from '../../android/src/utils/supabase';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user) {
+        setName(data.user.user_metadata?.full_name || '');
+        setEmail(data.user.email || '');
+      }
+    };
+    fetchUser();
+  }, []);
 
   const handleLogout = () => {
     Alert.alert(
@@ -51,8 +65,8 @@ export default function ProfileScreen() {
               <Feather name="edit" size={16} color="#fff" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.name}>jenniekim</Text>
-          <Text style={styles.email}>jenniekim@gmail.com</Text>
+          <Text style={styles.name}>{name}</Text>
+          <Text style={styles.email}>{email}</Text>
         </View>
 
         {/* Settings Options */}
@@ -61,23 +75,18 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.option}
           onPress={() => router.push("/(modals)/account-settings")}>
 
-            <Feather name="user" size={20} color="#333"
-/>
+            <Feather name="user" size={20} color="#333"/>
             <Text style={styles.optionText}>Account Settings</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.option}
             onPress={() => router.push("/(modals)/notification-settings")}
-    
           >
-
             <Feather name="bell" size={20} color="#333" />
             <Text style={styles.optionText}>Notification Settings</Text>
           </TouchableOpacity>
 
-
-       
           <TouchableOpacity
             style={[styles.option, { marginTop: 10 }]}
             onPress={handleLogout}
