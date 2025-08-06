@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,11 +13,14 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../android/src/utils/supabase';
+import Avatar from '../Avatar'; // Adjust the path if needed
 
 export default function ProfileScreen() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const avatarRef = useRef<any>(null);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -25,10 +28,18 @@ export default function ProfileScreen() {
       if (data?.user) {
         setName(data.user.user_metadata?.full_name || '');
         setEmail(data.user.email || '');
+        setAvatarUrl(data.user.user_metadata?.avatar_url || null); // Adjust based on your user metadata
       }
     };
     fetchUser();
   }, []);
+
+  // Handle avatar upload
+  const handleAvatarUpload = async (filePath: string) => {
+    setAvatarUrl(filePath);
+    // Optionally, update the user's avatar_url in your backend here
+    // await supabase.auth.updateUser({ data: { avatar_url: filePath } });
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -57,11 +68,16 @@ export default function ProfileScreen() {
         {/* Profile Section */}
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
-            <Image
-              source={{ uri: 'https://via.placeholder.com/100' }} // Replace with real image
-              style={styles.avatar}
+            <Avatar
+              ref={avatarRef}
+              url={avatarUrl}
+              size={100}
+              onUpload={handleAvatarUpload}
             />
-            <TouchableOpacity style={styles.editIcon}>
+            <TouchableOpacity
+              style={styles.editIcon}
+              onPress={() => avatarRef.current?.uploadAvatar()}
+            >
               <Feather name="edit" size={16} color="#fff" />
             </TouchableOpacity>
           </View>

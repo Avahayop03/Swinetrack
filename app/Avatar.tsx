@@ -1,7 +1,8 @@
 import * as ImagePicker from 'expo-image-picker'
-import { useEffect, useState } from 'react'
-import { Alert, Button, Image, StyleSheet, View } from 'react-native'
+import React, { useEffect, useState, forwardRef, useImperativeHandle } from 'react'
+import { Alert, Button, Image, StyleSheet, Text, View } from 'react-native'
 import { supabase } from '../android/src/utils/supabase'
+import { Feather } from '@expo/vector-icons'
 
 interface Props {
   size: number
@@ -9,7 +10,7 @@ interface Props {
   onUpload: (filePath: string) => void
 }
 
-export default function Avatar({ url, size = 150, onUpload }: Props) {
+const Avatar = forwardRef(function Avatar({ url, size = 150, onUpload }: Props, ref) {
   const [uploading, setUploading] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const avatarSize = { height: size, width: size }
@@ -88,31 +89,49 @@ export default function Avatar({ url, size = 150, onUpload }: Props) {
     }
   }
 
+  useImperativeHandle(ref, () => ({
+    uploadAvatar,
+  }))
+
   return (
     <View>
       {avatarUrl ? (
         <Image
           source={{ uri: avatarUrl }}
           accessibilityLabel="Avatar"
-          style={[avatarSize, styles.avatar, styles.image]}
+          style={[
+            avatarSize,
+            styles.avatar,
+            {
+              borderRadius: size / 2, // Ensures the image is always a circle
+              resizeMode: 'cover',    // Ensures the image covers the area
+            },
+          ]}
         />
       ) : (
-        <View style={[avatarSize, styles.avatar, styles.noImage]} />
+        <View
+          style={[
+            avatarSize,
+            styles.avatar,
+            {
+              backgroundColor: '#bbb',
+              borderRadius: size / 2,
+              justifyContent: 'center',
+              alignItems: 'center',
+            },
+          ]}
+        >
+          <Text style={{ color: '#fff', fontSize: size / 2, fontWeight: 'bold' }}>
+            <Feather name="user" size={size / 2} color="#fff" />
+          </Text>
+        </View>
       )}
-      <View>
-        <Button
-          title={uploading ? 'Uploading ...' : 'Upload'}
-          onPress={uploadAvatar}
-          disabled={uploading}
-        />
-      </View>
     </View>
   )
-}
+})
 
 const styles = StyleSheet.create({
   avatar: {
-    borderRadius: 5,
     overflow: 'hidden',
     maxWidth: '100%',
   },
@@ -121,10 +140,13 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   noImage: {
-    backgroundColor: '#333',
+    backgroundColor: '#bbb',
     borderWidth: 1,
-    borderStyle: 'solid',
     borderColor: 'rgb(200, 200, 200)',
-    borderRadius: 5,
+    // borderRadius is set inline for circle
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 })
+
+export default Avatar
