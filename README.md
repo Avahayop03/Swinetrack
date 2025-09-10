@@ -1,4 +1,4 @@
-SwineTrack - Right on Time, Healthy Swine 
+SwineTrack - Right on Time, Healthy Swine
 
 An IOT-based mobile application for health monitoring and early detection of ASF.
 
