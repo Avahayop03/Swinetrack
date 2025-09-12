@@ -7,37 +7,88 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../android/src/utils/supabase";
+import { useLiveFrame } from "../../src/features/live/useLiveFrame";
+import { useSnapshots } from "../../src/features/snapshots/useSnapshots";
 
 export default function Index() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"live" | "diary">("live");
   const [userName, setUserName] = useState<string | null>(null);
 
+  // Replace "device-1" with your actual device ID
+  const deviceId = "device-1";
+  const { url: liveFrameUrl, err: liveFrameError } = useLiveFrame(
+    deviceId,
+    5000
+  );
+  const {
+    snapshots,
+    loading: snapshotsLoading,
+    error: snapshotsError,
+    hasMore,
+    loadMore,
+    refresh,
+  } = useSnapshots(deviceId);
+
   useEffect(() => {
     const fetchUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (data?.user) {
-        setUserName(
-          (data.user.user_metadata?.full_name
-            ? data.user.user_metadata.full_name.split(" ")[0]
-            : null) ||
-            data.user.email ||
-            "User"
-        );
+      try {
+        const { data, error } = await supabase.auth.getUser();
+        if (error) {
+          console.error("Error fetching user:", error);
+          return;
+        }
+
+        if (data?.user) {
+          setUserName(
+            (data.user.user_metadata?.full_name
+              ? data.user.user_metadata.full_name.split(" ")[0]
+              : null) ||
+              data.user.email ||
+              "User"
+          );
+        }
+      } catch (err) {
+        console.error("Error in fetchUser:", err);
       }
     };
+
     fetchUser();
   }, []);
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error("Logout failed:", error.message);
-      return;
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Logout failed:", error.message);
+        return;
+      }
+      router.replace("/(auth)/login");
+    } catch (err) {
+      console.error("Error during logout:", err);
     }
-    router.replace("/(auth)/login");
+  };
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return (
+        date.toLocaleDateString() +
+        " " +
+        date.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
+    } catch (e) {
+      return dateString;
+    }
   };
 
   return (
@@ -78,12 +129,39 @@ export default function Index() {
       <ScrollView
         style={styles.scrollArea}
         contentContainerStyle={{ paddingBottom: 40 }}
+        refreshControl={
+          activeTab === "diary" ? (
+            <RefreshControl
+              refreshing={snapshotsLoading}
+              onRefresh={refresh}
+              colors={["#487307"]}
+            />
+          ) : undefined
+        }
       >
         {activeTab === "live" ? (
           <>
-            {/* Camera Feed Placeholder */}
+            {/* Camera Feed */}
             <View style={styles.feedBox}>
-              <Text style={styles.noFeedText}>📷 No camera feed today</Text>
+              {liveFrameUrl === null && !liveFrameError ? (
+                <ActivityIndicator size="large" color="#487307" />
+              ) : liveFrameUrl ? (
+                <Image
+                  source={{ uri: liveFrameUrl }}
+                  style={styles.liveImage}
+                  resizeMode="cover"
+                  onError={(e) =>
+                    console.error("Image loading error:", e.nativeEvent.error)
+                  }
+                />
+              ) : liveFrameError ? (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>Error loading feed</Text>
+                  <Text style={styles.errorSubText}>{liveFrameError}</Text>
+                </View>
+              ) : (
+                <Text style={styles.noFeedText}>No feed available</Text>
+              )}
             </View>
 
             {/* Pen Status Section */}
@@ -113,11 +191,95 @@ export default function Index() {
         ) : (
           <>
             {/* Snapshots Diary Content */}
-            <View style={styles.diaryBox}>
-              <Text style={styles.diaryText}>
-                📸 Snapshots will appear here.
-              </Text>
-              <Text style={styles.diaryText}>No entries yet.</Text>
+            <View style={styles.diaryContainer}>
+              {snapshotsError ? (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>Error loading snapshots</Text>
+                  <Text style={styles.errorSubText}>{snapshotsError}</Text>
+                  <TouchableOpacity
+                    onPress={refresh}
+                    style={styles.retryButton}
+                  >
+                    <Text style={styles.retryButtonText}>Try Again</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : snapshots.length === 0 && !snapshotsLoading ? (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateIcon}>📸</Text>
+                  <Text style={styles.emptyStateText}>No snapshots yet</Text>
+                  <Text style={styles.emptyStateSubText}>
+                    Snapshots will appear here when available
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  {snapshots.map((snapshot) => (
+                    <View key={snapshot.id} style={styles.snapshotCard}>
+                      {snapshot.imageUrl ? (
+                        <Image
+                          source={{ uri: snapshot.imageUrl }}
+                          style={styles.snapshotImage}
+                          resizeMode="cover"
+                          onError={(e) =>
+                            console.error(
+                              "Snapshot image error:",
+                              e.nativeEvent.error
+                            )
+                          }
+                        />
+                      ) : (
+                        <View style={styles.snapshotPlaceholder}>
+                          <Text style={styles.placeholderText}>
+                            No image available
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.snapshotInfo}>
+                        <Text style={styles.snapshotDate}>
+                          {formatDate(snapshot.ts)}
+                        </Text>
+                        {snapshot.reading && (
+                          <View style={styles.readingInfo}>
+                            <Text style={styles.readingText}>
+                              🌡️ {snapshot.reading.t_avg_c?.toFixed(1) || "N/A"}
+                              °C
+                            </Text>
+                            <Text style={styles.readingText}>
+                              💧{" "}
+                              {snapshot.reading.humidity_rh?.toFixed(1) ||
+                                "N/A"}
+                              %
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  ))}
+
+                  {snapshotsLoading && (
+                    <ActivityIndicator
+                      style={styles.loader}
+                      size="small"
+                      color="#487307"
+                    />
+                  )}
+
+                  {hasMore && !snapshotsLoading && (
+                    <TouchableOpacity
+                      onPress={loadMore}
+                      style={styles.loadMoreButton}
+                    >
+                      <Text style={styles.loadMoreText}>Load More</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {!hasMore && snapshots.length > 0 && (
+                    <Text style={styles.noMoreText}>
+                      No more snapshots to load
+                    </Text>
+                  )}
+                </>
+              )}
             </View>
           </>
         )}
@@ -133,35 +295,23 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: "#487307",
+    paddingTop: 30,
     paddingVertical: 30,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
-  menuIcon: {
-    position: "absolute",
-    right: 20,
-    top: 30,
-  },
   headerTopRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "flex-start",
-  },
-  logoCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
+    marginBottom: 10,
   },
   logo: {
     width: 60,
     height: 55,
     resizeMode: "contain",
     marginLeft: -20,
-    marginTop: 10,
   },
   welcomeText: {
     fontSize: 25,
@@ -185,6 +335,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     color: "#555",
+    fontWeight: "500",
   },
   activeTab: {
     fontWeight: "bold",
@@ -203,21 +354,43 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
+    overflow: "hidden",
+  },
+  liveImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 10,
   },
   noFeedText: {
     fontSize: 16,
     color: "#888",
   },
-  diaryBox: {
-    backgroundColor: "#f0f0f0",
-    borderRadius: 10,
+  errorContainer: {
+    alignItems: "center",
+    justifyContent: "center",
     padding: 16,
-    marginBottom: 16,
   },
-  diaryText: {
-    fontSize: 15,
+  errorText: {
+    fontSize: 16,
+    color: "#d32f2f",
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  errorSubText: {
+    fontSize: 14,
     color: "#666",
-    marginBottom: 10,
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  retryButton: {
+    backgroundColor: "#487307",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontWeight: "500",
   },
   penStatusTitle: {
     fontSize: 18,
@@ -261,5 +434,94 @@ const styles = StyleSheet.create({
     width: 100,
     backgroundColor: "#dcdcdc",
     borderRadius: 8,
+  },
+  diaryContainer: {
+    padding: 4,
+  },
+  snapshotCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: "hidden",
+  },
+  snapshotImage: {
+    width: "100%",
+    height: 200,
+  },
+  snapshotPlaceholder: {
+    width: "100%",
+    height: 200,
+    backgroundColor: "#e6e6e6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  placeholderText: {
+    color: "#888",
+    fontSize: 14,
+  },
+  snapshotInfo: {
+    padding: 12,
+  },
+  snapshotDate: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8,
+  },
+  readingInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  readingText: {
+    fontSize: 12,
+    color: "#666",
+  },
+  loader: {
+    marginVertical: 16,
+  },
+  loadMoreButton: {
+    backgroundColor: "#487307",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginVertical: 16,
+  },
+  loadMoreText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+  noMoreText: {
+    textAlign: "center",
+    color: "#666",
+    marginVertical: 16,
+    fontStyle: "italic",
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 40,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 12,
+    marginVertical: 20,
+  },
+  emptyStateIcon: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 4,
+  },
+  emptyStateSubText: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
   },
 });
