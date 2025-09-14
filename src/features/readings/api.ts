@@ -21,6 +21,7 @@ export async function fetchReadings(
   toISO: string,
   limit = 1000
 ) {
+  console.log("fetchReadings params", { deviceId, fromISO, toISO, limit });
   const { data, error } = await supabase
     .from("readings")
     .select(
@@ -31,6 +32,10 @@ export async function fetchReadings(
     .lte("ts", toISO)
     .order("ts", { ascending: false })
     .limit(limit);
-  if (error) throw error;
+  if (error) {
+    console.error("fetchReadings error", error);
+    throw error;
+  }
+  console.log("fetchReadings result", data?.length ?? 0);
   return data as ReadingRow[];
 }

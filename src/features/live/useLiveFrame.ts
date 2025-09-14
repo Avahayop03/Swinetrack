@@ -11,9 +11,13 @@ export function useLiveFrame(deviceId: string, intervalMs = 1000) {
       timer: any;
     const tick = async () => {
       try {
-        setUrl(await getLiveFrameUrl(deviceId, 10));
+        console.log("useLiveFrame fetching", deviceId);
+        const newUrl = await getLiveFrameUrl(deviceId, 10);
+        console.log("useLiveFrame url", newUrl);
+        setUrl(newUrl);
         setErr(null);
       } catch (e: any) {
+        console.error("useLiveFrame error", e);
         setErr(String(e?.message ?? e));
       } finally {
         if (alive) timer = setTimeout(tick, intervalMs);

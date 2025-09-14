@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { listAlerts } from "@/features/alerts/api";
+import { DEVICE_ID } from "@/constants";
 
 // Define AlertRow type here if not exported from api
 type AlertRow = {
@@ -31,8 +32,7 @@ export default function AlertsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [expandedAlert, setExpandedAlert] = useState<string | null>(null);
 
-  // Replace with actual device ID or make it configurable
-  const deviceId = "your-device-id";
+  const deviceId = DEVICE_ID;
 
   useEffect(() => {
     Animated.spring(scaleAnim, {
@@ -46,7 +46,9 @@ export default function AlertsScreen() {
   const loadAlerts = async () => {
     try {
       setError(null);
+      console.log("Loading alerts for", deviceId);
       const data = await listAlerts(deviceId, 0, 50);
+      console.log("Loaded alerts", data?.length ?? 0);
       setAlerts(data);
     } catch (err) {
       console.error("Error loading alerts:", err);

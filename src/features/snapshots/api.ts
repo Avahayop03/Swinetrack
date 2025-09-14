@@ -8,7 +8,6 @@ export type SnapshotRow = {
   reading_id: number | null;
   imageUrl: string | null;
   reading?: {
-    ts: string;
     temp_c: number | null;
     humidity_rh: number | null;
     pressure_hpa: number | null;
@@ -30,7 +29,7 @@ export async function listSnapshots(deviceId: string, page = 0, pageSize = 20) {
       .select(
         `
         id, device_id, ts, overlay_path, reading_id,
-        reading:readings ( ts, temp_c, humidity_rh, pressure_hpa, gas_res_ohm, iaq, t_min_c, t_max_c, t_avg_c )
+        reading:readings ( temp_c, humidity_rh, pressure_hpa, gas_res_ohm, iaq, t_min_c, t_max_c, t_avg_c )
       `
       )
       .eq("device_id", deviceId)
@@ -44,7 +43,7 @@ export async function listSnapshots(deviceId: string, page = 0, pageSize = 20) {
 
     console.log("Found", data?.length, "snapshots");
 
-    // Get signed URLs for each snapshot
+    // Get public URLs for each snapshot
     const snapshotsWithUrls = await Promise.all(
       (data ?? []).map(async (row: any) => {
         try {
@@ -53,18 +52,18 @@ export async function listSnapshots(deviceId: string, page = 0, pageSize = 20) {
             return { ...row, imageUrl: null };
           }
 
-          const { data: urlData, error: urlError } = await supabase.storage
+          const { data: urlData } = supabase.storage
             .from("snapshots")
-            .createSignedUrl(row.overlay_path, 60 * 30); // 30 minute expiry
+            .getPublicUrl(row.overlay_path);
 
-          if (urlError) {
-            console.error("Storage error for", row.overlay_path, urlError);
+          if (!urlData?.publicUrl) {
+            console.error("Missing snapshot file for", row.overlay_path);
             return { ...row, imageUrl: null };
           }
 
-          return { ...row, imageUrl: urlData?.signedUrl ?? null };
+          return { ...row, imageUrl: urlData.publicUrl };
         } catch (urlErr) {
-          console.error("Error creating signed URL:", urlErr);
+          console.error("Error retrieving public URL:", urlErr);
           return { ...row, imageUrl: null };
         }
       })
