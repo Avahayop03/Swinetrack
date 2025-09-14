@@ -10,17 +10,17 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
-import { supabase } from "../../android/src/utils/supabase";
-import { useLiveFrame } from "../../src/features/live/useLiveFrame";
-import { useSnapshots } from "../../src/features/snapshots/useSnapshots";
+import { supabase } from "@/lib/supabase";
+import { useLiveFrame } from "@/features/live/useLiveFrame";
+import { useSnapshots } from "@/features/snapshots/useSnapshots";
+import { DEVICE_ID } from "@/constants";
 
 export default function Index() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"live" | "diary">("live");
   const [userName, setUserName] = useState<string | null>(null);
 
-  // Replace "device-1" with your actual device ID
-  const deviceId = "device-1";
+  const deviceId = DEVICE_ID;
   const { url: liveFrameUrl, err: liveFrameError } = useLiveFrame(
     deviceId,
     5000

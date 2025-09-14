@@ -14,6 +14,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { fetchReadings, ReadingRow } from "@/features/readings/api"; // Import your API functions
+import { DEVICE_ID } from "@/constants";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -22,6 +23,7 @@ export default function HistoryScreen() {
   const [readings, setReadings] = useState<ReadingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const deviceId = DEVICE_ID;
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -39,37 +41,33 @@ export default function HistoryScreen() {
     fetchUser();
   }, []);
 
+  const loadReadings = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get current date and date from 7 days ago
+      const toDate = new Date();
+      const fromDate = new Date();
+      fromDate.setDate(fromDate.getDate() - 7); // Last 7 days
+
+      const toISO = toDate.toISOString();
+      const fromISO = fromDate.toISOString();
+      console.log("Fetching readings for", deviceId, fromISO, toISO);
+      const data = await fetchReadings(deviceId, fromISO, toISO, 1000);
+      console.log("Loaded readings", data?.length ?? 0);
+      setReadings(data);
+    } catch (err) {
+      console.error("Error fetching readings:", err);
+      setError(err instanceof Error ? err.message : "Failed to load readings");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadReadings = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Get current date and date from 7 days ago
-        const toDate = new Date();
-        const fromDate = new Date();
-        fromDate.setDate(fromDate.getDate() - 7); // Last 7 days
-
-        const toISO = toDate.toISOString();
-        const fromISO = fromDate.toISOString();
-
-        // Replace 'your-device-id' with actual device ID or make it configurable
-        const deviceId = "798d7d0b-965c-4eff-ba65-ce081bc139eb"; // You might want to make this dynamic
-
-        const data = await fetchReadings(deviceId, fromISO, toISO, 1000);
-        setReadings(data);
-      } catch (err) {
-        console.error("Error fetching readings:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load readings"
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadReadings();
-  }, []);
+  }, [deviceId]);
 
   const formatDate = (isoString: string) => {
     const date = new Date(isoString);
@@ -110,10 +108,7 @@ export default function HistoryScreen() {
           <Ionicons name="alert-circle-outline" size={48} color="#ff6b6b" />
           <Text style={styles.errorText}>Error loading data</Text>
           <Text style={styles.errorSubText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => window.location.reload()}
-          >
+          <TouchableOpacity style={styles.retryButton} onPress={loadReadings}>
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
