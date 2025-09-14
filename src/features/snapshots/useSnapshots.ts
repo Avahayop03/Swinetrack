@@ -12,32 +12,32 @@ export function useSnapshots(deviceId: string) {
   const loadSnapshots = async (pageNum: number = 0) => {
     try {
       setLoading(true);
-      
+
       // First test the connection if we haven't already
       if (!connectionTested) {
         console.log("Testing database connection...");
         const connectionOk = await testSnapshotsConnection(deviceId);
         setConnectionTested(true);
-        
+
         if (!connectionOk) {
           setError("Unable to connect to database");
           return;
         }
       }
-      
+
       console.log("Loading snapshots, page:", pageNum);
       const data = await listSnapshots(deviceId, pageNum, 10);
-      
+
       console.log("Loaded", data.length, "snapshots");
-      
+
       if (data.length === 0) {
         setHasMore(false);
       }
-      
+
       if (pageNum === 0) {
         setSnapshots(data);
       } else {
-        setSnapshots(prev => [...prev, ...data]);
+        setSnapshots((prev) => [...prev, ...data]);
       }
       setPage(pageNum);
       setError(null);

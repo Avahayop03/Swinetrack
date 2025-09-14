@@ -1,10 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, StatusBar, TouchableOpacity, Dimensions, Image, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
-import { fetchReadings, ReadingRow } from '@/features/readings/api'; // Import your API functions
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  TouchableOpacity,
+  Dimensions,
+  Image,
+  ActivityIndicator,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { supabase } from "@/lib/supabase";
+import { fetchReadings, ReadingRow } from "@/features/readings/api"; // Import your API functions
 
-const screenWidth = Dimensions.get('window').width;
+const screenWidth = Dimensions.get("window").width;
 
 export default function HistoryScreen() {
   const [userName, setUserName] = useState<string | null>(null);
@@ -33,23 +44,25 @@ export default function HistoryScreen() {
       try {
         setLoading(true);
         setError(null);
-        
+
         // Get current date and date from 7 days ago
         const toDate = new Date();
         const fromDate = new Date();
         fromDate.setDate(fromDate.getDate() - 7); // Last 7 days
-        
+
         const toISO = toDate.toISOString();
         const fromISO = fromDate.toISOString();
-        
+
         // Replace 'your-device-id' with actual device ID or make it configurable
-        const deviceId = '798d7d0b-965c-4eff-ba65-ce081bc139eb'; // You might want to make this dynamic
-        
+        const deviceId = "798d7d0b-965c-4eff-ba65-ce081bc139eb"; // You might want to make this dynamic
+
         const data = await fetchReadings(deviceId, fromISO, toISO, 1000);
         setReadings(data);
       } catch (err) {
-        console.error('Error fetching readings:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load readings');
+        console.error("Error fetching readings:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to load readings"
+        );
       } finally {
         setLoading(false);
       }
@@ -60,19 +73,19 @@ export default function HistoryScreen() {
 
   const formatDate = (isoString: string) => {
     const date = new Date(isoString);
-    return date.toLocaleDateString('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      year: '2-digit'
+    return date.toLocaleDateString("en-US", {
+      month: "2-digit",
+      day: "2-digit",
+      year: "2-digit",
     });
   };
 
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
     });
   };
 
@@ -97,7 +110,7 @@ export default function HistoryScreen() {
           <Ionicons name="alert-circle-outline" size={48} color="#ff6b6b" />
           <Text style={styles.errorText}>Error loading data</Text>
           <Text style={styles.errorSubText}>{error}</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.retryButton}
             onPress={() => window.location.reload()}
           >
@@ -112,7 +125,9 @@ export default function HistoryScreen() {
         <View style={styles.emptyContainer}>
           <Ionicons name="time-outline" size={48} color="#ccc" />
           <Text style={styles.emptyText}>No data available</Text>
-          <Text style={styles.emptySubText}>No readings found for the selected period</Text>
+          <Text style={styles.emptySubText}>
+            No readings found for the selected period
+          </Text>
         </View>
       );
     }
@@ -123,10 +138,14 @@ export default function HistoryScreen() {
           <View key={reading.id} style={styles.tableRow}>
             <Text style={styles.cell}>{formatDate(reading.ts)}</Text>
             <Text style={styles.cell}>{formatTime(reading.ts)}</Text>
-            <Text style={styles.cell}>{reading.temp_c?.toFixed(2) || 'N/A'}</Text>
-            <Text style={styles.cell}>{reading.humidity_rh?.toFixed(1) || 'N/A'}</Text>
             <Text style={styles.cell}>
-              {reading.iaq ? Math.round(reading.iaq).toString() : 'N/A'}
+              {reading.temp_c?.toFixed(2) || "N/A"}
+            </Text>
+            <Text style={styles.cell}>
+              {reading.humidity_rh?.toFixed(1) || "N/A"}
+            </Text>
+            <Text style={styles.cell}>
+              {reading.iaq ? Math.round(reading.iaq).toString() : "N/A"}
             </Text>
           </View>
         ))}
@@ -134,7 +153,7 @@ export default function HistoryScreen() {
     );
   };
 
-  return ( 
+  return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
 
@@ -142,12 +161,16 @@ export default function HistoryScreen() {
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           <Image
-            source={require('./swinetrack-logo.png')}
+            source={require("./swinetrack-logo.png")}
             style={styles.logo}
           />
         </View>
-        <Text style={styles.welcomeText}>Welcome back, {userName ? userName : 'User'}!</Text>
-        <Text style={styles.subText}>View your pig's status history here.</Text>
+        <Text style={styles.welcomeText}>
+          Welcome back, {userName ? userName : "User"}!
+        </Text>
+        <Text style={styles.subText}>
+          View your pig&apos;s status history here.
+        </Text>
         <View style={styles.divider} />
       </View>
 
@@ -156,7 +179,7 @@ export default function HistoryScreen() {
         {/* Row: Export + History */}
         <View style={styles.titleRow}>
           {/* Export Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.exportButton}
             onPress={handleExport}
             disabled={loading || readings.length === 0}
@@ -190,10 +213,10 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   header: {
-    backgroundColor: '#487307',
+    backgroundColor: "#487307",
     paddingTop: 30,
     paddingBottom: 30,
     paddingHorizontal: 20,
@@ -202,27 +225,27 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   headerTopRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
   },
   logo: {
     width: 60,
     height: 55,
-    resizeMode: 'contain',
+    resizeMode: "contain",
     marginLeft: -20,
     marginTop: 10,
   },
   welcomeText: {
     fontSize: 25,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
     marginTop: 2,
     marginLeft: 15,
   },
   subText: {
     fontSize: 14,
-    color: '#d8f2c1',
+    color: "#d8f2c1",
     marginTop: 4,
     marginLeft: 15,
   },
@@ -231,16 +254,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 12,
-    position: 'relative',
+    position: "relative",
     height: 40,
   },
   exportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#eaf3e3',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#eaf3e3",
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 6,
@@ -248,104 +271,104 @@ const styles = StyleSheet.create({
   },
   exportText: {
     marginLeft: 4,
-    color: '#487307',
-    fontWeight: '600',
+    color: "#487307",
+    fontWeight: "600",
     fontSize: 12,
   },
   divider: {
     height: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     marginTop: 12,
     opacity: 0.5,
   },
   centerTitleContainer: {
-    position: 'absolute',
+    position: "absolute",
     left: screenWidth / 2 - 70,
   },
   historyTitle: {
     fontSize: 30,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
   },
   tableHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingVertical: 6,
     paddingHorizontal: 4,
     borderRadius: 4,
   },
   tableHeaderText: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
     fontSize: 12,
-    width: '20%',
-    textAlign: 'center',
+    width: "20%",
+    textAlign: "center",
   },
   tableRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingVertical: 8,
     paddingHorizontal: 4,
     borderBottomWidth: 1,
-    borderColor: '#eee',
+    borderColor: "#eee",
   },
   cell: {
-    width: '20%',
+    width: "20%",
     fontSize: 12,
-    textAlign: 'center',
+    textAlign: "center",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   loadingText: {
     marginTop: 10,
-    color: '#666',
+    color: "#666",
   },
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   errorText: {
     fontSize: 18,
-    color: '#ff6b6b',
+    color: "#ff6b6b",
     marginTop: 10,
   },
   errorSubText: {
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
     marginTop: 5,
   },
   retryButton: {
     marginTop: 15,
-    backgroundColor: '#487307',
+    backgroundColor: "#487307",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 5,
   },
   retryText: {
-    color: 'white',
-    fontWeight: '600',
+    color: "white",
+    fontWeight: "600",
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   emptyText: {
     fontSize: 18,
-    color: '#ccc',
+    color: "#ccc",
     marginTop: 10,
   },
   emptySubText: {
     fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
+    color: "#999",
+    textAlign: "center",
     marginTop: 5,
   },
 });

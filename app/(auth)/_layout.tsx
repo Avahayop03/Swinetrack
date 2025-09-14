@@ -7,4 +7,4 @@ export default function AuthLayout() {
       <Stack.Screen name="signup" options={{ headerShown: false }} />
     </Stack>
   );
-};
+}

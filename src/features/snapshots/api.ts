@@ -24,7 +24,7 @@ export type SnapshotRow = {
 export async function listSnapshots(deviceId: string, page = 0, pageSize = 20) {
   try {
     console.log("Fetching snapshots for device:", deviceId);
-    
+
     const { data, error } = await supabase
       .from("snapshots")
       .select(
@@ -56,12 +56,12 @@ export async function listSnapshots(deviceId: string, page = 0, pageSize = 20) {
           const { data: urlData, error: urlError } = await supabase.storage
             .from("snapshots")
             .createSignedUrl(row.overlay_path, 60 * 30); // 30 minute expiry
-          
+
           if (urlError) {
             console.error("Storage error for", row.overlay_path, urlError);
             return { ...row, imageUrl: null };
           }
-          
+
           return { ...row, imageUrl: urlData?.signedUrl ?? null };
         } catch (urlErr) {
           console.error("Error creating signed URL:", urlErr);
@@ -80,16 +80,16 @@ export async function listSnapshots(deviceId: string, page = 0, pageSize = 20) {
 // Add a simple test function to verify the API is working
 export async function testSnapshotsConnection(deviceId: string) {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("snapshots")
       .select("count")
       .eq("device_id", deviceId);
-    
+
     if (error) {
       console.error("Test connection error:", error);
       return false;
     }
-    
+
     console.log("Test connection successful");
     return true;
   } catch (err) {

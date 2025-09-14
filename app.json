@@ -8,10 +8,8 @@
     "scheme": "swinetrack",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "ios": {
-    },
-    "android": {
-    },
+    "ios": {},
+    "android": {},
     "web": {
       "bundler": "metro",
       "output": "static",

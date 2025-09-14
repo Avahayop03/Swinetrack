@@ -25,7 +25,11 @@ function FontLoader({ children }: { children: React.ReactNode }) {
     }
     TextAny.defaultProps.style = [
       { fontFamily: "Poppins-Regular" },
-      ...(TextAny.defaultProps.style ? Array.isArray(TextAny.defaultProps.style) ? TextAny.defaultProps.style : [TextAny.defaultProps.style] : [])
+      ...(TextAny.defaultProps.style
+        ? Array.isArray(TextAny.defaultProps.style)
+          ? TextAny.defaultProps.style
+          : [TextAny.defaultProps.style]
+        : []),
     ];
 
     if (!TextInputAny.defaultProps) {
@@ -33,7 +37,11 @@ function FontLoader({ children }: { children: React.ReactNode }) {
     }
     TextInputAny.defaultProps.style = [
       { fontFamily: "Poppins-Regular" },
-      ...(TextInputAny.defaultProps.style ? Array.isArray(TextInputAny.defaultProps.style) ? TextInputAny.defaultProps.style : [TextInputAny.defaultProps.style] : [])
+      ...(TextInputAny.defaultProps.style
+        ? Array.isArray(TextInputAny.defaultProps.style)
+          ? TextInputAny.defaultProps.style
+          : [TextInputAny.defaultProps.style]
+        : []),
     ];
   }, [fontsLoaded]);
 
@@ -62,7 +70,10 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
         // You can add more checks if needed for specific routes
         return true; // Block back action
       };
-      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress
+      );
       return () => subscription.remove();
     }
   });

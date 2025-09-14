@@ -1,24 +1,23 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   SafeAreaView,
   ScrollView,
   StatusBar,
   Alert,
-} from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { supabase } from '../../android/src/utils/supabase';
-import Avatar from '../Avatar'; // Adjust the path if needed
+} from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { supabase } from "../../android/src/utils/supabase";
+import Avatar from "../Avatar"; // Adjust the path if needed
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const avatarRef = useRef<any>(null);
 
@@ -26,8 +25,8 @@ export default function ProfileScreen() {
     const fetchUser = async () => {
       const { data } = await supabase.auth.getUser();
       if (data?.user) {
-        setName(data.user.user_metadata?.full_name || '');
-        setEmail(data.user.email || '');
+        setName(data.user.user_metadata?.full_name || "");
+        setEmail(data.user.email || "");
         setAvatarUrl(data.user.user_metadata?.avatar_url || null); // Adjust based on your user metadata
       }
     };
@@ -43,17 +42,17 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     Alert.alert(
-      'Log Out',
-      'Are you sure you want to log out?',
+      "Log Out",
+      "Are you sure you want to log out?",
       [
         {
-          text: 'Cancel',
-          style: 'cancel',
+          text: "Cancel",
+          style: "cancel",
         },
         {
-          text: 'Yes',
+          text: "Yes",
           onPress: () => router.push("/(auth)/login"),
-          style: 'destructive',
+          style: "destructive",
         },
       ],
       { cancelable: true }
@@ -87,11 +86,11 @@ export default function ProfileScreen() {
 
         {/* Settings Options */}
         <View style={styles.options}>
-
-          <TouchableOpacity style={styles.option}
-          onPress={() => router.push("/(modals)/account-settings")}>
-
-            <Feather name="user" size={20} color="#333"/>
+          <TouchableOpacity
+            style={styles.option}
+            onPress={() => router.push("/(modals)/account-settings")}
+          >
+            <Feather name="user" size={20} color="#333" />
             <Text style={styles.optionText}>Account Settings</Text>
           </TouchableOpacity>
 
@@ -108,7 +107,7 @@ export default function ProfileScreen() {
             onPress={handleLogout}
           >
             <Feather name="log-out" size={20} color="red" />
-            <Text style={[styles.optionText, { color: 'red' }]}>Log out</Text>
+            <Text style={[styles.optionText, { color: "red" }]}>Log out</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -119,23 +118,23 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#3D6D11',
+    backgroundColor: "#3D6D11",
   },
   container: {
     flexGrow: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   profileCard: {
-    backgroundColor: '#487307',
+    backgroundColor: "#487307",
     padding: 50,
-    alignItems: 'center',
+    alignItems: "center",
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     marginBottom: 20,
     paddingTop: 50,
   },
   avatarContainer: {
-    position: 'relative',
+    position: "relative",
     marginBottom: 10,
   },
   avatar: {
@@ -144,20 +143,20 @@ const styles = StyleSheet.create({
     borderRadius: 50,
   },
   editIcon: {
-    position: 'absolute',
+    position: "absolute",
     right: 0,
     bottom: 0,
-    backgroundColor: '#487307',
+    backgroundColor: "#487307",
     borderRadius: 15,
     padding: 6,
   },
   name: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
     fontSize: 18,
-    color: 'white',
+    color: "white",
   },
   email: {
-    color: 'white',
+    color: "white",
     fontSize: 14,
   },
   options: {
@@ -165,15 +164,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   option: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderColor: '#eee',
+    borderColor: "#eee",
     gap: 10,
   },
   optionText: {
     fontSize: 16,
-    color: '#333',
+    color: "#333",
   },
 });

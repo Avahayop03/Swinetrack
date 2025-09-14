@@ -19,12 +19,12 @@ export async function fetchReadings(
   deviceId: string,
   fromISO: string,
   toISO: string,
-  limit = 1000,
+  limit = 1000
 ) {
   const { data, error } = await supabase
     .from("readings")
     .select(
-      "id, device_id, ts, temp_c, humidity_rh, pressure_hpa, gas_res_ohm, iaq, t_min_c, t_max_c, t_avg_c",
+      "id, device_id, ts, temp_c, humidity_rh, pressure_hpa, gas_res_ohm, iaq, t_min_c, t_max_c, t_avg_c"
     )
     .eq("device_id", deviceId)
     .gte("ts", fromISO)
