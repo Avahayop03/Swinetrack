@@ -1,14 +1,20 @@
-
-import { Session } from '@supabase/supabase-js';
-import { useFonts } from 'expo-font';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, AppState, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { supabase } from '../android/src/utils/supabase';
+import { Session } from "@supabase/supabase-js";
+import { useFonts } from "expo-font";
+import { useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  AppState,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { supabase } from "../android/src/utils/supabase";
 
 // Start or stop session auto-refresh
-AppState.addEventListener('change', (state) => {
-  if (state === 'active') {
+AppState.addEventListener("change", (state) => {
+  if (state === "active") {
     supabase.auth.startAutoRefresh();
   } else {
     supabase.auth.stopAutoRefresh();
@@ -20,8 +26,8 @@ export default function WelcomePage() {
   const router = useRouter();
 
   const [fontsLoaded] = useFonts({
-    'Poppins-Regular': require('../assets/fonts/Poppins-Regular.ttf'),
-    'Poppins-Bold': require('../assets/fonts/Poppins-Bold.ttf'),
+    "Poppins-Regular": require("../assets/fonts/Poppins-Regular.ttf"),
+    "Poppins-Bold": require("../assets/fonts/Poppins-Bold.ttf"),
   });
 
   useEffect(() => {
@@ -29,9 +35,11 @@ export default function WelcomePage() {
       setSession(session);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+      }
+    );
 
     return () => {
       listener.subscription.unsubscribe();
@@ -68,7 +76,7 @@ export default function WelcomePage() {
     <View style={styles.container}>
       <View style={styles.topContent}>
         <Animated.Image
-          source={require('../assets/images/swinetrack-logo.png')}
+          source={require("../assets/images/swinetrack-logo.png")}
           style={[styles.logo, { opacity: logoOpacity }]}
         />
 
@@ -84,14 +92,14 @@ export default function WelcomePage() {
       <Animated.View style={[styles.bottomSection, { opacity: bottomOpacity }]}>
         <TouchableOpacity
           style={styles.signInButton}
-          onPress={() => router.push('/(auth)/login')}
+          onPress={() => router.push("/(auth)/login")}
         >
           <Text style={styles.signInText}>Sign In</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.createAccountButton}
-          onPress={() => router.push('/(auth)/signup')}
+          onPress={() => router.push("/(auth)/signup")}
         >
           <Text style={styles.createAccountText}>Create account</Text>
         </TouchableOpacity>
@@ -103,73 +111,73 @@ export default function WelcomePage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    justifyContent: 'space-between',
+    backgroundColor: "#fff",
+    justifyContent: "space-between",
   },
   topContent: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 100,
   },
   logo: {
     width: 300,
     height: 190,
-    resizeMode: 'contain',
-    tintColor: '#487307',
+    resizeMode: "contain",
+    tintColor: "#487307",
   },
   appName: {
     fontSize: 40,
     marginBottom: 8,
-    textAlign: 'center',
-    fontFamily: 'Poppins-Bold',
+    textAlign: "center",
+    fontFamily: "Poppins-Bold",
   },
   orangeText: {
-    color: '#F5A623',
-    fontFamily: 'Poppins-Bold',
+    color: "#F5A623",
+    fontFamily: "Poppins-Bold",
   },
   greenText: {
-    color: '#467C1D',
-    fontFamily: 'Poppins-Bold',
+    color: "#467C1D",
+    fontFamily: "Poppins-Bold",
   },
   tagline: {
     fontSize: 17,
-    fontStyle: 'italic',
-    color: '#333',
-    textAlign: 'center',
-    fontFamily: 'Poppins-Regular',
+    fontStyle: "italic",
+    color: "#333",
+    textAlign: "center",
+    fontFamily: "Poppins-Regular",
   },
   bottomSection: {
-    backgroundColor: '#487307',
+    backgroundColor: "#487307",
     padding: 30,
     paddingBottom: 50,
     paddingTop: 70,
     borderTopLeftRadius: 80,
     borderTopRightRadius: 80,
-    alignItems: 'center',
+    alignItems: "center",
   },
   signInButton: {
-    width: '100%',
+    width: "100%",
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: "#fff",
     paddingVertical: 14,
     borderRadius: 20,
     marginBottom: 15,
-    alignItems: 'center',
+    alignItems: "center",
   },
   signInText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontFamily: 'Poppins-Bold',
+    fontFamily: "Poppins-Bold",
   },
   createAccountButton: {
-    width: '100%',
-    backgroundColor: '#fff',
+    width: "100%",
+    backgroundColor: "#fff",
     paddingVertical: 14,
     borderRadius: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   createAccountText: {
-    color: '#467C1D',
+    color: "#467C1D",
     fontSize: 16,
-    fontFamily: 'Poppins-Bold',
+    fontFamily: "Poppins-Bold",
   },
 });

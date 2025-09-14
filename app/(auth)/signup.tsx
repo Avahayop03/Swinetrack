@@ -1,6 +1,6 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
 import {
   Alert,
   AppState,
@@ -12,34 +12,34 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { supabase } from '../../android/src/utils/supabase';
+} from "react-native";
+import { supabase } from "../../android/src/utils/supabase";
 
-AppState.addEventListener('change', (state) => {
-  if (state === 'active') {
+AppState.addEventListener("change", (state) => {
+  if (state === "active") {
     supabase.auth.startAutoRefresh();
   } else {
     supabase.auth.stopAutoRefresh();
   }
 });
 
-const { height } = Dimensions.get('window');
+const { height } = Dimensions.get("window");
 
 export default function SignUp() {
   const router = useRouter();
 
-  const [email, setEmail] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showRepeatPassword, setShowRepeatPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function signUpWithEmail() {
     if (password !== confirmPassword) {
-      Alert.alert('Passwords do not match.');
+      Alert.alert("Passwords do not match.");
       return;
     }
 
@@ -51,7 +51,7 @@ export default function SignUp() {
         data: {
           full_name: fullName,
           phone: phone,
-          avatar_url: '',
+          avatar_url: "",
         },
       },
     });
@@ -59,19 +59,28 @@ export default function SignUp() {
     setLoading(false);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert("Error", error.message);
     } else {
-      Alert.alert('Success', 'Account created! Please check your email to verify your account.');
-      router.replace('/(auth)/login');
+      Alert.alert(
+        "Success",
+        "Account created! Please check your email to verify your account."
+      );
+      router.replace("/(auth)/login");
     }
   }
 
   return (
     <View style={styles.fullScreen}>
-      <ScrollView contentContainerStyle={styles.scrollView} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.scrollView}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.topBackground}>
           <View style={styles.logoContainer}>
-            <Image source={require('./swinetrack-logo.png')} style={styles.logo} />
+            <Image
+              source={require("./swinetrack-logo.png")}
+              style={styles.logo}
+            />
             <Text style={styles.title}>Sign Up</Text>
           </View>
 
@@ -123,12 +132,12 @@ export default function SignUp() {
                   value={password}
                   onChangeText={setPassword}
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
                   style={styles.eyeIcon}
                 >
                   <Ionicons
-                    name={showPassword ? 'eye-off' : 'eye'}
+                    name={showPassword ? "eye-off" : "eye"}
                     size={20}
                     color="#555"
                   />
@@ -148,12 +157,12 @@ export default function SignUp() {
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => setShowRepeatPassword(!showRepeatPassword)}
                   style={styles.eyeIcon}
                 >
                   <Ionicons
-                    name={showRepeatPassword ? 'eye-off' : 'eye'}
+                    name={showRepeatPassword ? "eye-off" : "eye"}
                     size={20}
                     color="#555"
                   />
@@ -168,13 +177,13 @@ export default function SignUp() {
               disabled={loading}
             >
               <Text style={styles.primaryText}>
-                {loading ? 'Creating Account...' : 'Create Account'}
+                {loading ? "Creating Account..." : "Create Account"}
               </Text>
             </TouchableOpacity>
 
             <View style={styles.footerRow}>
               <Text style={styles.footerText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+              <TouchableOpacity onPress={() => router.push("/(auth)/login")}>
                 <Text style={styles.link}>Log in</Text>
               </TouchableOpacity>
             </View>
@@ -188,67 +197,67 @@ export default function SignUp() {
 const styles = StyleSheet.create({
   fullScreen: {
     flex: 1,
-    backgroundColor: '#487307',
+    backgroundColor: "#487307",
   },
   scrollView: {
     flexGrow: 1,
-    justifyContent: 'flex-start',
+    justifyContent: "flex-start",
   },
   topBackground: {
     flex: 1,
-    backgroundColor: '#487307',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
+    backgroundColor: "#487307",
+    alignItems: "center",
+    justifyContent: "flex-start",
     paddingTop: 40,
   },
   logoContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 20,
   },
   logo: {
     width: 300,
     height: 100,
-    resizeMode: 'contain',
+    resizeMode: "contain",
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
   },
   container: {
     flexGrow: 1,
-    width: '100%',
-    backgroundColor: '#fff',
+    width: "100%",
+    backgroundColor: "#fff",
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
     padding: 24,
     paddingTop: 50,
-    alignItems: 'center',
+    alignItems: "center",
     minHeight: height * 0.75,
   },
   label: {
     fontSize: 13,
     marginBottom: 4,
-    color: '#555',
+    color: "#555",
   },
   field: {
-    width: '100%',
+    width: "100%",
     marginBottom: 10,
   },
   input: {
-    backgroundColor: '#F0F0F0',
+    backgroundColor: "#F0F0F0",
     padding: 12,
     borderRadius: 10,
     fontSize: 14,
   },
   row: {
-    flexDirection: 'row',
+    flexDirection: "row",
   },
   passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0F0F0',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0F0F0",
     borderRadius: 10,
     paddingRight: 10,
   },
@@ -261,30 +270,30 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   primaryButton: {
-    backgroundColor: '#487307',
+    backgroundColor: "#487307",
     padding: 15,
     borderRadius: 20,
     marginTop: 10,
-    width: '100%',
+    width: "100%",
   },
   primaryText: {
-    color: '#fff',
-    textAlign: 'center',
-    fontWeight: 'bold',
+    color: "#fff",
+    textAlign: "center",
+    fontWeight: "bold",
   },
   footerRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginTop: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   footerText: {
     fontSize: 13,
-    color: '#555',
+    color: "#555",
     marginBottom: 40,
   },
   link: {
-    color: '#487307',
-    fontWeight: 'bold',
+    color: "#487307",
+    fontWeight: "bold",
     fontSize: 13,
     marginBottom: 40,
   },

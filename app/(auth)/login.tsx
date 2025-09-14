@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Alert,
   AppState,
@@ -9,16 +9,16 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { supabase } from '../../assets/supabase';
+  View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { supabase } from "../../assets/supabase";
 
-const { height } = Dimensions.get('window');
+const { height } = Dimensions.get("window");
 
-AppState.addEventListener('change', (state) => {
-  if (state === 'active') {
+AppState.addEventListener("change", (state) => {
+  if (state === "active") {
     supabase.auth.startAutoRefresh();
   } else {
     supabase.auth.stopAutoRefresh();
@@ -27,8 +27,8 @@ AppState.addEventListener('change', (state) => {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -40,7 +40,10 @@ export default function LoginScreen() {
 
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (error) {
       console.error("Login error:", error.message);
@@ -49,7 +52,8 @@ export default function LoginScreen() {
       return;
     }
 
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getSession();
 
     setLoading(false);
 
@@ -65,10 +69,13 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.fullScreen}>
-      <ScrollView contentContainerStyle={styles.scrollView} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.scrollView}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.topBackground}>
           <Image
-            source={require('./swinetrack-logo.png')}
+            source={require("./swinetrack-logo.png")}
             style={styles.logo}
           />
           <Text style={styles.title}>Sign In</Text>
@@ -97,14 +104,14 @@ export default function LoginScreen() {
               onChangeText={setPassword}
               autoCapitalize="none"
             />
-            <TouchableOpacity 
-              onPress={() => setShowPassword(!showPassword)} 
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
               style={styles.eyeIcon}
             >
-              <Ionicons 
-                name={showPassword ? 'eye-off' : 'eye'} 
-                size={20} 
-                color="#888" 
+              <Ionicons
+                name={showPassword ? "eye-off" : "eye"}
+                size={20}
+                color="#888"
               />
             </TouchableOpacity>
           </View>
@@ -113,19 +120,19 @@ export default function LoginScreen() {
             <Text style={styles.forgotPasswordText}>Forgot password?</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.submitBtn} 
+          <TouchableOpacity
+            style={styles.submitBtn}
             onPress={signInWithEmail}
             disabled={loading}
           >
             <Text style={styles.submitText}>
-              {loading ? 'Logging in...' : 'Log in'}
+              {loading ? "Logging in..." : "Log in"}
             </Text>
           </TouchableOpacity>
 
           <View style={styles.footerRow}>
-            <Text style={styles.footer}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
+            <Text style={styles.footer}>Don&apos;t have an account? </Text>
+            <TouchableOpacity onPress={() => router.push("/(auth)/signup")}>
               <Text style={styles.link}>Sign up</Text>
             </TouchableOpacity>
           </View>
@@ -138,58 +145,58 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   fullScreen: {
     flex: 1,
-    backgroundColor: '#487307',
+    backgroundColor: "#487307",
   },
   scrollView: {
     flexGrow: 1,
   },
   topBackground: {
-    backgroundColor: '#487307',
-    alignItems: 'center',
+    backgroundColor: "#487307",
+    alignItems: "center",
     paddingTop: 60,
     paddingBottom: 20,
   },
   logo: {
     width: 300,
     height: 100,
-    resizeMode: 'contain',
+    resizeMode: "contain",
     marginBottom: 10,
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
   },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
     padding: 24,
     paddingTop: 50,
-    alignItems: 'center',
+    alignItems: "center",
     minHeight: height * 0.65,
   },
   label: {
     fontSize: 13,
     marginBottom: 4,
-    color: '#555',
-    alignSelf: 'flex-start',
-    width: '100%',
+    color: "#555",
+    alignSelf: "flex-start",
+    width: "100%",
   },
   input: {
-    backgroundColor: '#f2f2f2',
+    backgroundColor: "#f2f2f2",
     padding: 12,
     borderRadius: 10,
     marginBottom: 15,
     fontSize: 14,
-    width: '100%',
+    width: "100%",
   },
   passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    backgroundColor: '#f2f2f2',
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    backgroundColor: "#f2f2f2",
     borderRadius: 10,
     marginBottom: 15,
   },
@@ -202,40 +209,40 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   forgotPassword: {
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
     marginBottom: 20,
   },
   forgotPasswordText: {
-    color: '#999',
+    color: "#999",
   },
   submitBtn: {
-    backgroundColor: '#487307',
+    backgroundColor: "#487307",
     padding: 15,
     borderRadius: 20,
     marginTop: 10,
-    width: '100%',
+    width: "100%",
     opacity: 1,
   },
   submitBtnDisabled: {
     opacity: 0.6,
   },
   submitText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    textAlign: 'center',
+    color: "#fff",
+    fontWeight: "bold",
+    textAlign: "center",
   },
   footerRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     marginTop: 20,
   },
   footer: {
-    color: '#555',
+    color: "#555",
     fontSize: 13,
   },
   link: {
-    color: '#487307',
-    fontWeight: 'bold',
+    color: "#487307",
+    fontWeight: "bold",
     fontSize: 13,
   },
 });

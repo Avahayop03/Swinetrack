@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../android/src/utils/supabase";
 import { useLiveFrame } from "../../src/features/live/useLiveFrame";
 import { useSnapshots } from "../../src/features/snapshots/useSnapshots";
@@ -86,7 +85,7 @@ export default function Index() {
           minute: "2-digit",
         })
       );
-    } catch (e) {
+    } catch {
       return dateString;
     }
   };
@@ -104,7 +103,7 @@ export default function Index() {
         <Text style={styles.welcomeText}>
           Welcome back, {userName ? userName : "User"}!
         </Text>
-        <Text style={styles.subText}>Today's pig status</Text>
+        <Text style={styles.subText}>Today&apos;s pig status</Text>
       </View>
 
       {/* Tabs */}
