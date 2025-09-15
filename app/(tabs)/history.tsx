@@ -195,7 +195,7 @@ export default function HistoryScreen() {
           <Text style={styles.tableHeaderText}>Time</Text>
           <Text style={styles.tableHeaderText}>Temp.</Text>
           <Text style={styles.tableHeaderText}>Humidity</Text>
-          <Text style={styles.tableHeaderText}>IAQ</Text>
+          <Text style={styles.tableHeaderText}>Amonia</Text>
         </View>
 
         {/* Table Rows */}
