@@ -13,6 +13,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useLiveFrame } from "@/features/live/useLiveFrame";
 import { useSnapshots } from "@/features/snapshots/useSnapshots";
+import { ThermalImage } from "@/components/ThermalImage";
 import { DEVICE_ID } from "@/constants";
 
 export default function Index() {
@@ -21,10 +22,12 @@ export default function Index() {
   const [userName, setUserName] = useState<string | null>(null);
 
   const deviceId = DEVICE_ID;
-  const { url: liveFrameUrl, err: liveFrameError } = useLiveFrame(
-    deviceId,
-    5000
-  );
+  const {
+    frameUrl: liveFrameUrl,
+    thermalUrl: liveThermalUrl,
+    err: liveFrameError,
+  } = useLiveFrame(deviceId, 5000);
+  console.log({ liveThermalUrl });
   const {
     snapshots,
     loading: snapshotsLoading,
@@ -144,14 +147,11 @@ export default function Index() {
             <View style={styles.feedBox}>
               {liveFrameUrl === null && !liveFrameError ? (
                 <ActivityIndicator size="large" color="#487307" />
-              ) : liveFrameUrl ? (
-                <Image
-                  source={{ uri: liveFrameUrl }}
+              ) : liveFrameUrl && liveThermalUrl ? (
+                <ThermalImage
+                  frameUrl={liveFrameUrl}
+                  thermalUrl={liveThermalUrl}
                   style={styles.liveImage}
-                  resizeMode="cover"
-                  onError={(e) =>
-                    console.error("Image loading error:", e.nativeEvent.error)
-                  }
                 />
               ) : liveFrameError ? (
                 <View style={styles.errorContainer}>
@@ -214,17 +214,11 @@ export default function Index() {
                 <>
                   {snapshots.map((snapshot) => (
                     <View key={snapshot.id} style={styles.snapshotCard}>
-                      {snapshot.imageUrl ? (
-                        <Image
-                          source={{ uri: snapshot.imageUrl }}
+                      {snapshot.imageUrl && snapshot.thermalUrl ? (
+                        <ThermalImage
+                          frameUrl={snapshot.imageUrl}
+                          thermalUrl={snapshot.thermalUrl}
                           style={styles.snapshotImage}
-                          resizeMode="cover"
-                          onError={(e) =>
-                            console.error(
-                              "Snapshot image error:",
-                              e.nativeEvent.error
-                            )
-                          }
                         />
                       ) : (
                         <View style={styles.snapshotPlaceholder}>

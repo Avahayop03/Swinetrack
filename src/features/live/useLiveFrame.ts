@@ -1,9 +1,10 @@
 // src/features/live/useLiveFrame.ts
 import { useEffect, useState } from "react";
-import { getLiveFrameUrl } from "./api";
+import { getLiveFrame } from "./api";
 
 export function useLiveFrame(deviceId: string, intervalMs = 1000) {
-  const [url, setUrl] = useState<string | null>(null);
+  const [frameUrl, setFrameUrl] = useState<string | null>(null);
+  const [thermalUrl, setThermalUrl] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -12,9 +13,13 @@ export function useLiveFrame(deviceId: string, intervalMs = 1000) {
     const tick = async () => {
       try {
         console.log("useLiveFrame fetching", deviceId);
-        const newUrl = await getLiveFrameUrl(deviceId, 10);
-        console.log("useLiveFrame url", newUrl);
-        setUrl(newUrl);
+        const { frameUrl: fUrl, thermalUrl: tUrl } = await getLiveFrame(
+          deviceId,
+          10
+        );
+        console.log("useLiveFrame urls", fUrl, tUrl);
+        setFrameUrl(fUrl);
+        setThermalUrl(tUrl);
         setErr(null);
       } catch (e: any) {
         console.error("useLiveFrame error", e);
@@ -30,5 +35,5 @@ export function useLiveFrame(deviceId: string, intervalMs = 1000) {
     };
   }, [deviceId, intervalMs]);
 
-  return { url, err };
+  return { frameUrl, thermalUrl, err };
 }

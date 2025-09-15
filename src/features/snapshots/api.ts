@@ -7,6 +7,7 @@ export type SnapshotRow = {
   overlay_path: string;
   reading_id: number | null;
   imageUrl: string | null;
+  thermalUrl: string | null;
   reading?: {
     temp_c: number | null;
     humidity_rh: number | null;
@@ -49,22 +50,31 @@ export async function listSnapshots(deviceId: string, page = 0, pageSize = 20) {
         try {
           if (!row.overlay_path) {
             console.log("No overlay path for snapshot", row.id);
-            return { ...row, imageUrl: null };
+            return { ...row, imageUrl: null, thermalUrl: null };
           }
 
           const { data: urlData } = supabase.storage
             .from("snapshots")
             .getPublicUrl(row.overlay_path);
 
-          if (!urlData?.publicUrl) {
-            console.error("Missing snapshot file for", row.overlay_path);
-            return { ...row, imageUrl: null };
+          const thermalPath = row.overlay_path.replace(/\.jpg$/i, ".json");
+          const { data: thermalData } = supabase.storage
+            .from("snapshots")
+            .getPublicUrl(thermalPath);
+
+          if (!urlData?.publicUrl || !thermalData?.publicUrl) {
+            console.error("Missing snapshot files for", row.overlay_path);
+            return { ...row, imageUrl: null, thermalUrl: null };
           }
 
-          return { ...row, imageUrl: urlData.publicUrl };
+          return {
+            ...row,
+            imageUrl: urlData.publicUrl,
+            thermalUrl: thermalData.publicUrl,
+          };
         } catch (urlErr) {
           console.error("Error retrieving public URL:", urlErr);
-          return { ...row, imageUrl: null };
+          return { ...row, imageUrl: null, thermalUrl: null };
         }
       })
     );
