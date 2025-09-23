@@ -33,8 +33,8 @@ export default function HistoryScreen() {
           (data.user.user_metadata?.full_name
             ? data.user.user_metadata.full_name.split(" ")[0]
             : null) ||
-            data.user.email ||
-            "User"
+          data.user.email ||
+          "User"
         );
       }
     };
@@ -140,7 +140,9 @@ export default function HistoryScreen() {
               {reading.humidity_rh?.toFixed(1) || "N/A"}
             </Text>
             <Text style={styles.cell}>
-              {reading.iaq ? Math.round(reading.iaq).toString() : "N/A"}
+              {reading.gas_res_ohm
+                ? (reading.gas_res_ohm / 1000).toFixed(1) + " kΩ"
+                : "N/A"}
             </Text>
           </View>
         ))}
