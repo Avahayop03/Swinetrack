@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { supabase } from "../../android/src/utils/supabase";
+import { supabase } from "@/lib/supabase";
 import Avatar from "../Avatar"; // Adjust the path if needed
 
 export default function ProfileScreen() {

@@ -1,4 +1,4 @@
-package com.anonymous.swinetrack
+package com.jerfox17.swinetrack
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

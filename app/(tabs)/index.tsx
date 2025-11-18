@@ -15,12 +15,16 @@ import {
   StyleSheet
 } from "react-native";
 import { supabase } from "@/lib/supabase";
-import { useLiveFrame } from "@/features/live/useLiveFrame";
+// import { useLiveFrame } from "@/features/live/useLiveFrame"; // REMOVED
+import { useThermalSSE } from "@/features/live/useThermalSSE"; // NEW IMPORT
 import { useSnapshots } from "@/features/snapshots/useSnapshots";
 import { ThermalImage } from "@/components/ThermalImage";
 import { DEVICE_ID } from "@/constants";
 import { fetchReadings, ReadingRow } from "@/features/readings/api";
 
+// --- CONSTANTS FOR LOCAL STREAMING ---
+const STREAM_URL = "http://192.168.1.102:8787/thermal-stream";
+const OPTICAL_URL = "http://192.168.1.102:8787/thermal-stream"; 
 
 const StatusCard = memo(({ title, icon, value, unit, history }: any) => {
   // Card text color
@@ -97,13 +101,30 @@ export default function Index() {
   const [userName, setUserName] = useState<string | null>(null);
   const deviceId = DEVICE_ID;
 
-  // Fetch live frame and thermal image periodically
-  const {
-    frameUrl: liveFrameUrl,
-    thermalUrl: liveThermalUrl,
-    err: liveFrameError,
-  } = useLiveFrame(deviceId, 5000);
+  // --- NEW: REAL-TIME SSE HOOK ---
+  const { 
+    data: liveThermalData, 
+    status: streamStatus, 
+    error: streamError 
+  } = useThermalSSE(STREAM_URL);
 
+  // Helper to refresh optical background occasionally if needed
+  // (Simple approach: appends timestamp to break cache)
+  const [opticalFrameUrl, setOpticalFrameUrl] = useState(OPTICAL_URL);
+  
+  useEffect(() => {
+    // Optional: Refresh background image every 5s if stream is connected
+    // to keep optical view somewhat synced
+    if (streamStatus === 'connected') {
+      const interval = setInterval(() => {
+        setOpticalFrameUrl(`${OPTICAL_URL}?t=${Date.now()}`);
+      }, 2000); // Refresh optical every 2 seconds
+      return () => clearInterval(interval);
+    }
+  }, [streamStatus]);
+
+
+  // --- EXISTING LOGIC ---
   const {
     snapshots,
     loading: snapshotsLoading,
@@ -143,7 +164,7 @@ export default function Index() {
     fetchUser();
   }, []);
 
-  // Fetch readings every 5 seconds
+  // Fetch readings every 5 seconds (Database/History)
   useEffect(() => {
     let interval: number;
 
@@ -176,16 +197,6 @@ export default function Index() {
     interval = setInterval(loadReadings, 5000);
     return () => clearInterval(interval);
   }, [deviceId]);
-
-  const handleLogout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) return;
-      router.replace("/(auth)/login");
-    } catch (err) {
-      console.error("Error during logout:", err);
-    }
-  };
 
   const formatDate = (dateString: string) => {
     try {
@@ -244,21 +255,30 @@ export default function Index() {
         {activeTab === "live" ? (
           <>
             <View style={styles.feedBox}>
-              {liveFrameUrl === null && !liveFrameError ? (
-                <ActivityIndicator size="large" color="#487307" />
-              ) : liveFrameUrl && liveThermalUrl ? (
+              {streamStatus === 'connected' && liveThermalData ? (
+                // Connected: Show Stream
                 <ThermalImage
-                  frameUrl={liveFrameUrl}
-                  thermalUrl={liveThermalUrl}
+                  frameUrl={opticalFrameUrl}
+                  thermalData={liveThermalData}
                   style={styles.liveImage}
+                  interpolationFactor={1.4} // change to change the live
+                  refreshInterval={0}
                 />
-              ) : liveFrameError ? (
+              ) : streamStatus === 'error' ? (
+                // Error State
                 <View style={styles.errorContainer}>
-                  <Text style={styles.errorText}>Error loading feed</Text>
-                  <Text style={styles.errorSubText}>{liveFrameError}</Text>
+                  <MaterialCommunityIcons name="video-off-outline" size={40} color="#d32f2f" style={{ marginBottom: 10 }} />
+                  <Text style={styles.errorText}>Stream Offline</Text>
+                  <Text style={{fontSize: 12, color:'#999', marginTop: 5}}>{streamError}</Text>
                 </View>
               ) : (
-                <Text style={styles.noFeedText}>No feed available</Text>
+                // Connecting State
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#487307" />
+                  <Text style={{ marginTop: 10, color: '#666', fontWeight: '500' }}>
+                    Reconnecting to live stream...
+                  </Text>
+                </View>
               )}
             </View>
 
@@ -289,6 +309,7 @@ export default function Index() {
             />
           </>
         ) : (
+          // --- DIARY TAB (UNCHANGED) ---
           <View style={styles.diaryContainer}>
             {snapshotsError ? (
               <View style={styles.errorContainer}>
@@ -318,6 +339,7 @@ export default function Index() {
                         frameUrl={snapshot.imageUrl}
                         thermalUrl={snapshot.thermalUrl}
                         style={styles.snapshotImage}
+                        refreshInterval={0} // Static images, no polling needed
                       />
                     ) : (
                       <View style={styles.snapshotPlaceholder}>
@@ -418,7 +440,7 @@ const styles = StyleSheet.create({
   },
   scrollArea: { flex: 1, padding: 16 },
   feedBox: {
-    height: 200,
+    height: 250, // Slightly taller for better view
     borderRadius: 10,
     backgroundColor: "#e6e6e6",
     alignItems: "center",
@@ -428,6 +450,10 @@ const styles = StyleSheet.create({
   },
   liveImage: { width: "100%", height: "100%", borderRadius: 10 },
   noFeedText: { fontSize: 16, color: "#888" },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
   penStatusTitle: {
     fontSize: 18,
     fontWeight: "bold",
@@ -443,7 +469,6 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
   },
   cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-  cardIcon: { fontSize: 20, marginRight: 10 },
   cardTitle: { fontSize: 18, fontWeight: "600", color: "#737375" },
   cardBody: {
     flexDirection: "row",

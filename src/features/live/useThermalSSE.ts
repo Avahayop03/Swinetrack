@@ -1,0 +1,120 @@
+import { useState, useEffect, useRef } from 'react';
+import EventSource from "react-native-sse";
+
+type ThermalPayload = {
+  w: number;
+  h: number;
+  data: number[];
+  tMin: number;
+  tMax: number;
+  tAvg: number;
+};
+
+export function useThermalSSE(url: string) {
+  const [data, setData] = useState<ThermalPayload | null>(null);
+  const [status, setStatus] = useState<'connected' | 'disconnected' | 'error' | 'reconnecting'>('disconnected');
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+
+  // Refs for managing connection and update loops
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // 1. Create a Ref to hold the absolute latest data instantly
+  const latestDataRef = useRef<ThermalPayload | null>(null);
+  
+  // 2. specific flag to ensure we don't stack UI updates
+  const animationFrameId = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!url) return;
+
+    console.log(`Connecting to SSE (Attempt ${retryCount + 1}):`, url);
+    if (retryCount > 0) setStatus('reconnecting');
+
+    const es = new EventSource<"thermal">(url, {
+      pollingInterval: 0,
+    });
+
+    es.addEventListener("open", () => {
+      console.log("✅ SSE Connected");
+      setStatus('connected');
+      setError(null);
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+    });
+
+    es.addEventListener("thermal", (event) => {
+      try {
+        const parsed = JSON.parse(event.data as string);
+        let payload: ThermalPayload | null = null;
+
+        // Normalize data structure
+        if (parsed.thermal && parsed.thermal.data && Array.isArray(parsed.thermal.data)) {
+          payload = {
+            w: parsed.thermal.w || 32,
+            h: parsed.thermal.h || 24,
+            data: parsed.thermal.data,
+            tMin: parsed.tMin,
+            tMax: parsed.tMax,
+            tAvg: parsed.tAvg
+          };
+        } else if (Array.isArray(parsed.thermal)) {
+          payload = {
+            w: 32,
+            h: 24,
+            data: parsed.thermal,
+            tMin: parsed.tMin,
+            tMax: parsed.tMax,
+            tAvg: parsed.tAvg
+          };
+        }
+
+        if (payload) {
+          // 3. Update the Ref immediately (synchronous, no render)
+          latestDataRef.current = payload;
+
+          // 4. Only schedule a render if one isn't already waiting
+          if (animationFrameId.current === null) {
+            animationFrameId.current = requestAnimationFrame(() => {
+              // When the UI is ready, take whatever is currently in the Ref
+              if (latestDataRef.current) {
+                setData(latestDataRef.current);
+              }
+              animationFrameId.current = null;
+            });
+          }
+        }
+
+      } catch (e) {
+        console.error("❌ JSON Parse Error", e);
+      }
+    });
+
+    es.addEventListener("error", (event) => {
+      const msg = (event as any).message || "Connection failed";
+      console.log("⚠️ SSE Connection Lost, retrying in 3s...");
+      
+      setStatus('error');
+      setError(msg);
+      es.close();
+
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = setTimeout(() => {
+        setRetryCount(prev => prev + 1);
+      }, 3000);
+    });
+
+    return () => {
+      es.removeAllEventListeners();
+      es.close();
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      
+      // Cleanup animation frame on unmount
+      if (animationFrameId.current !== null) {
+        cancelAnimationFrame(animationFrameId.current);
+        animationFrameId.current = null;
+      }
+    };
+  }, [url, retryCount]); 
+
+  return { data, status, error };
+}

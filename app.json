@@ -9,7 +9,9 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {},
-    "android": {},
+    "android": {
+      "package": "com.jerfox17.swinetrack"
+    },
     "web": {
       "bundler": "metro",
       "output": "static",

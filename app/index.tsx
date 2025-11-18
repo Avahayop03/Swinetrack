@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { supabase } from "../android/src/utils/supabase";
+import { supabase } from "@/lib/supabase";
 
 // Start or stop session auto-refresh
 AppState.addEventListener("change", (state) => {

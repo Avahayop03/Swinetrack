@@ -11,7 +11,7 @@ import {
   Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { supabase } from "../../android/src/utils/supabase";
+import { supabase } from "@/lib/supabase";
 
 export default function AccountSettingsScreen() {
   const [name, setName] = useState("");

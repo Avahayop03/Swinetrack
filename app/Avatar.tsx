@@ -6,7 +6,7 @@ import React, {
   useImperativeHandle,
 } from "react";
 import { Alert, Button, Image, StyleSheet, Text, View } from "react-native";
-import { supabase } from "../android/src/utils/supabase";
+import { supabase } from "@/lib/supabase";
 import { Feather } from "@expo/vector-icons";
 
 interface Props {
