@@ -18,6 +18,7 @@
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
     "@supabase/supabase-js": "^2.52.0",
+    "d3-shape": "^3.2.0",
     "expo": "^54.0.7",
     "expo-app-loading": "^2.1.1",
     "expo-auth-session": "~6.2.1",

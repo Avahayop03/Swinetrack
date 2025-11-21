@@ -1,6 +1,9 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Image, StyleSheet, View, Text, ViewStyle, TextStyle } from 'react-native';
-import Svg, { Rect, Line } from 'react-native-svg';
+import Svg, { Rect, Line, G } from 'react-native-svg';
+
+// --- CALIBRATION SETTINGS ---
+const TEMP_OFFSET = -6.0; 
 
 type ThermalPayload = {
   w: number;
@@ -14,7 +17,7 @@ type ThermalPayload = {
 
 type Props = {
   frameUrl: string;
-  thermalUrl?: string;
+  thermalUrl?: string; // Kept for type compatibility, but ignored in SSE mode
   thermalData?: ThermalPayload | null;
   style?: ViewStyle;
   overlayOpacity?: number;
@@ -68,7 +71,6 @@ function interpolateData(data: number[], sourceW: number, sourceH: number, targe
 
 function smoothData(data: number[], w: number, h: number): number[] {
   const smoothed = new Array(data.length);
-
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       let sum = 0;
@@ -94,115 +96,119 @@ function smoothData(data: number[], w: number, h: number): number[] {
 
 export function ThermalImage({
   frameUrl,
-  thermalUrl,
   thermalData,
   style,
-  overlayOpacity = .7,
-  refreshInterval = 1000,
-  interpolationFactor = 2, //change to change the pixel view
-
+  overlayOpacity = 0.7, 
+  interpolationFactor = 2, 
 }: Props) {
   const [payload, setPayload] = useState<ThermalPayload | null>(null);
-  const intervalRef = useRef<number | null>(null);
 
+  // --- REVERTED: Simple Effect to update state when Prop changes ---
   useEffect(() => {
-    if (thermalData) setPayload(thermalData);
+    if (thermalData) {
+      setPayload(thermalData);
+    }
   }, [thermalData]);
 
-  useEffect(() => {
-    if (thermalData || !thermalUrl) return;
+  // --- MEMOIZED DATA PROCESSING ---
+  const { processedData, displayW, displayH, tMin, tMax, hottestX, hottestY } = useMemo(() => {
+    const dataArray = payload?.data ?? payload?.pixelData;
+    const sourceW = payload?.w ?? 32;
+    const sourceH = payload?.h ?? 24;
 
-    const fetchThermalData = async () => {
-      try {
-        const response = await fetch(thermalUrl + `?t=${Date.now()}`);
-        const json = await response.json() as ThermalPayload;
-        setPayload(json);
-      } catch { }
-    };
+    let finalData: number[] = [];
+    let dw = sourceW;
+    let dh = sourceH;
+    let min = Infinity;
+    let max = -Infinity;
+    let hIdx = -1;
 
-    fetchThermalData();
-    if (refreshInterval > 0) {
-      intervalRef.current = setInterval(fetchThermalData, refreshInterval) as unknown as number;
-    }
+    if (Array.isArray(dataArray) && sourceW > 0 && sourceH > 0) {
+      const correctedData = dataArray.map(v => v + TEMP_OFFSET);
+      let pass1 = smoothData(correctedData, sourceW, sourceH);
+      let pass2 = smoothData(pass1, sourceW, sourceH);
 
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [thermalUrl, refreshInterval, thermalData]);
+      if (interpolationFactor > 1) {
+        dw = Math.round(sourceW * interpolationFactor);
+        dh = Math.round(sourceH * interpolationFactor);
+        finalData = interpolateData(pass2, sourceW, sourceH, dw, dh);
+      } else {
+        finalData = pass2;
+      }
 
-  const dataArray = payload?.data ?? payload?.pixelData;
-  const sourceW = payload?.w ?? 32;
-  const sourceH = payload?.h ?? 24;
-
-  let processedData: number[] = [];
-  let displayW = sourceW;
-  let displayH = sourceH;
-
-  if (Array.isArray(dataArray) && sourceW > 0 && sourceH > 0) {
-    const smoothed = smoothData(dataArray, sourceW, sourceH);
-    if (interpolationFactor > 1) {
-      displayW = Math.round(sourceW * interpolationFactor);
-      displayH = Math.round(sourceH * interpolationFactor);
-      processedData = interpolateData(smoothed, sourceW, sourceH, displayW, displayH);
-    } else processedData = smoothed;
-  }
-
-  let tMin = Infinity;
-  let tMax = -Infinity;
-  let hottestIndex = -1;
-
-  if (processedData.length > 0) {
-    const margin = Math.round(3 * interpolationFactor);
-    for (let y = margin; y < displayH - margin; y++) {
-      for (let x = margin; x < displayW - margin; x++) {
-        const i = y * displayW + x;
-        const v = processedData[i];
+      const margin = Math.round(3 * interpolationFactor);
+      for (let i = 0; i < finalData.length; i++) {
+        const v = finalData[i];
         if (!Number.isFinite(v)) continue;
-        if (v < tMin) tMin = v;
-        if (v > tMax) {
-          tMax = v;
-          hottestIndex = i;
+        if (v < min) min = v;
+        if (v > max) {
+          const y = Math.floor(i / dw);
+          const x = i % dw;
+          if (x > margin && x < dw - margin && y > margin && y < dh - margin) {
+            max = v;
+            hIdx = i;
+          }
         }
       }
     }
-  }
 
-  const hottestX = hottestIndex >= 0 ? hottestIndex % displayW : -1;
-  const hottestY = hottestIndex >= 0 ? Math.floor(hottestIndex / displayW) : -1;
+    return {
+      processedData: finalData,
+      displayW: dw,
+      displayH: dh,
+      tMin: min,
+      tMax: max,
+      hottestX: hIdx >= 0 ? hIdx % dw : -1,
+      hottestY: hIdx >= 0 ? Math.floor(hIdx / dw) : -1,
+    };
+  }, [payload, interpolationFactor]);
 
-  const renderThermalOverlay = () => {
+  // --- MEMOIZED SVG RENDERING ---
+  const svgElements = useMemo(() => {
     if (!processedData.length) return null;
-    const pixelSkip = 1;
     const elements = [];
-    for (let y = 0; y < displayH; y += pixelSkip) {
-      for (let x = 0; x < displayW; x += pixelSkip) {
+    for (let y = 0; y < displayH; y++) {
+      for (let x = 0; x < displayW; x++) {
         const i = y * displayW + x;
-        if (i >= processedData.length) continue;
         const v = processedData[i];
         const t = normalise(v, tMin, tMax);
         elements.push(
-          <Rect key={`${x}-${y}`} x={x} y={y} width={pixelSkip} height={pixelSkip} fill={mapColour(t)} opacity={overlayOpacity} />
+          <Rect key={`${x}-${y}`} x={x} y={y} width={1.6} height={1.6} fill={mapColour(t)} />
         );
       }
     }
     return elements;
-  };
+  }, [processedData, displayW, displayH, tMin, tMax]);
+
+  const strokeBg = 0.3;  
+  const strokeFg = 0.15; 
+  const gap = 0.6;       
+  const len = 1.5;       
 
   return (
     <View style={[styles.container, style]}>
       <Image source={{ uri: frameUrl }} style={[StyleSheet.absoluteFill, styles.image]} resizeMode="contain" />
+      
       {processedData.length > 0 && (
         <Svg style={[StyleSheet.absoluteFill, styles.overlay]} viewBox={`0 0 ${displayW} ${displayH}`} preserveAspectRatio="none">
-          {renderThermalOverlay()}
-          {hottestIndex >= 0 && (
-            <>
-              <Line x1={hottestX - 2} y1={hottestY} x2={hottestX + 2} y2={hottestY} stroke="white" strokeWidth={0.5} />
-              <Line x1={hottestX} y1={hottestY - 2} x2={hottestX} y2={hottestY + 2} stroke="white" strokeWidth={0.5} />
-            </>
+          <G opacity={overlayOpacity}>{svgElements}</G>
+          {hottestX >= 0 && (
+            <G>
+              <Line x1={hottestX - (gap + len)} y1={hottestY + 0.5} x2={hottestX - gap} y2={hottestY + 0.5} stroke="black" strokeWidth={strokeBg} strokeLinecap="round" opacity={0.8} />
+              <Line x1={hottestX + 1 + gap} y1={hottestY + 0.5} x2={hottestX + 1 + gap + len} y2={hottestY + 0.5} stroke="black" strokeWidth={strokeBg} strokeLinecap="round" opacity={0.8} />
+              <Line x1={hottestX + 0.5} y1={hottestY - (gap + len)} x2={hottestX + 0.5} y2={hottestY - gap} stroke="black" strokeWidth={strokeBg} strokeLinecap="round" opacity={0.8} />
+              <Line x1={hottestX + 0.5} y1={hottestY + 1 + gap} x2={hottestX + 0.5} y2={hottestY + 1 + gap + len} stroke="black" strokeWidth={strokeBg} strokeLinecap="round" opacity={0.8} />
+              <Line x1={hottestX - (gap + len)} y1={hottestY + 0.5} x2={hottestX - gap} y2={hottestY + 0.5} stroke="white" strokeWidth={strokeFg} strokeLinecap="round" />
+              <Line x1={hottestX + 1 + gap} y1={hottestY + 0.5} x2={hottestX + 1 + gap + len} y2={hottestY + 0.5} stroke="white" strokeWidth={strokeFg} strokeLinecap="round" />
+              <Line x1={hottestX + 0.5} y1={hottestY - (gap + len)} x2={hottestX + 0.5} y2={hottestY - gap} stroke="white" strokeWidth={strokeFg} strokeLinecap="round" />
+              <Line x1={hottestX + 0.5} y1={hottestY + 1 + gap} x2={hottestX + 0.5} y2={hottestY + 1 + gap + len} stroke="white" strokeWidth={strokeFg} strokeLinecap="round" />
+            </G>
           )}
         </Svg>
       )}
-      {hottestIndex >= 0 && <Text style={styles.tempLabel}>{tMax.toFixed(1)}°C</Text>}
+      {hottestX >= 0 && (
+        <Text style={styles.tempLabel}>Max: {tMax.toFixed(1)}°C</Text>
+      )}
     </View>
   );
 }
@@ -211,7 +217,7 @@ const styles = StyleSheet.create({
   container: { position: 'relative', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' },
   image: { width: '100%', height: '100%' },
   overlay: { width: '100%', height: '100%' },
-  tempLabel: { position: 'absolute', color: 'white', fontSize: 14, fontWeight: 'bold', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 } as TextStyle,
+  tempLabel: { position: 'absolute', color: 'white', fontSize: 12, fontWeight: 'bold', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4, overflow: 'hidden' } as TextStyle,
 });
 
 export default ThermalImage;
