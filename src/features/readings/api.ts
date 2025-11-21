@@ -1,4 +1,3 @@
-// src/features/readings/api.ts
 import { supabase } from "@/lib/supabase";
 
 export type ReadingRow = {
@@ -19,9 +18,10 @@ export async function fetchReadings(
   deviceId: string,
   fromISO: string,
   toISO: string,
-  limit = 1000
+  limit = 10,
+  offset = 0 
 ) {
-  console.log("fetchReadings params", { deviceId, fromISO, toISO, limit });
+  
   const { data, error } = await supabase
     .from("readings")
     .select(
@@ -31,11 +31,12 @@ export async function fetchReadings(
     .gte("ts", fromISO)
     .lte("ts", toISO)
     .order("ts", { ascending: false })
-    .limit(limit);
+    .range(offset, offset + limit - 1);
+
   if (error) {
     console.error("fetchReadings error", error);
     throw error;
   }
-  console.log("fetchReadings result", data?.length ?? 0);
+  
   return data as ReadingRow[];
 }
