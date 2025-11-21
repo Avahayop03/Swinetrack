@@ -32,6 +32,11 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // --- Start of Changes for Local Login ---
+  // Define local credentials
+  const LOCAL_USERNAME = "admin";
+  const LOCAL_PASSWORD = "admin";
+
   async function signInWithEmail() {
     if (!email || !password) {
       Alert.alert("Missing Input", "Email and password are required.");
@@ -39,6 +44,21 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
+
+    // 1. Check for Local Credentials
+    if (email === LOCAL_USERNAME && password === LOCAL_PASSWORD) {
+      // Local login successful!
+      // NOTE: Since this is a local user, no Supabase session is created.
+      // You must handle the app state/navigation appropriately.
+      // We will skip session verification and navigate directly.
+      console.log("Local Login verified for:", LOCAL_USERNAME);
+      Alert.alert("Login Successful", `Welcome back, ${LOCAL_USERNAME}!`);
+      setLoading(false);
+      router.push("/(tabs)");
+      return; // Stop execution after local login success
+    }
+
+    // 2. Fallback to Supabase authentication for all other users
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -62,10 +82,11 @@ export default function LoginScreen() {
       return;
     }
 
-    console.log("Login verified for:", sessionData.session.user.email);
+    console.log("Supabase Login verified for:", sessionData.session.user.email);
     Alert.alert("Login Successful", "Welcome back!");
     router.push("/(tabs)");
   }
+  // --- End of Changes for Local Login ---
 
   return (
     <View style={styles.fullScreen}>

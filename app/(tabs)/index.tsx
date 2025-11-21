@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { LineChart } from "react-native-svg-charts";
 import * as shape from "d3-shape";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { WebView } from 'react-native-webview';
 
 import React, { useState, useEffect, memo } from "react";
 import {
@@ -15,19 +16,17 @@ import {
   StyleSheet
 } from "react-native";
 import { supabase } from "@/lib/supabase";
-// import { useLiveFrame } from "@/features/live/useLiveFrame"; // REMOVED
-import { useThermalSSE } from "@/features/live/useThermalSSE"; // NEW IMPORT
+import { useThermalSSE } from "@/features/live/useThermalSSE";
 import { useSnapshots } from "@/features/snapshots/useSnapshots";
 import { ThermalImage } from "@/components/ThermalImage";
 import { DEVICE_ID } from "@/constants";
 import { fetchReadings, ReadingRow } from "@/features/readings/api";
 
-// --- CONSTANTS FOR LOCAL STREAMING ---
+// --- CONSTANTS ---
 const STREAM_URL = "http://192.168.1.102:8787/thermal-stream";
-const OPTICAL_URL = "http://192.168.1.102:8787/thermal-stream"; 
+const OPTICAL_URL = "http://192.168.1.103:81/stream"; 
 
 const StatusCard = memo(({ title, icon, value, unit, history }: any) => {
-  // Card text color
   const getColor = () => {
     if (title === "Ammonia") {
       if (value < 5) return "#1FCB4F";
@@ -37,7 +36,6 @@ const StatusCard = memo(({ title, icon, value, unit, history }: any) => {
     return "#1FCB4F";
   };
 
-  // Chart line color
   const getLineColor = () => {
     if (title === "Ammonia") {
       return value >= 10 ? "#D32F2F" : "#4C505D";
@@ -45,7 +43,6 @@ const StatusCard = memo(({ title, icon, value, unit, history }: any) => {
     return "#4C505D";
   };
 
-  // Normalize data for chart display
   const normalize = (arr: number[]) => {
     if (!arr || arr.length === 0) return [];
     const max = Math.max(...arr);
@@ -98,33 +95,20 @@ StatusCard.displayName = "StatusCard";
 export default function Index() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"live" | "diary">("live");
+  const [viewMode, setViewMode] = useState<"thermal" | "optical">("thermal");
   const [userName, setUserName] = useState<string | null>(null);
+  
+  const [opticalStatus, setOpticalStatus] = useState<'connected' | 'error' | 'loading'>('connected');
+  const [opticalKey, setOpticalKey] = useState(0); 
+
   const deviceId = DEVICE_ID;
 
-  // --- NEW: REAL-TIME SSE HOOK ---
   const { 
     data: liveThermalData, 
     status: streamStatus, 
     error: streamError 
   } = useThermalSSE(STREAM_URL);
 
-  // Helper to refresh optical background occasionally if needed
-  // (Simple approach: appends timestamp to break cache)
-  const [opticalFrameUrl, setOpticalFrameUrl] = useState(OPTICAL_URL);
-  
-  useEffect(() => {
-    // Optional: Refresh background image every 5s if stream is connected
-    // to keep optical view somewhat synced
-    if (streamStatus === 'connected') {
-      const interval = setInterval(() => {
-        setOpticalFrameUrl(`${OPTICAL_URL}?t=${Date.now()}`);
-      }, 2000); // Refresh optical every 2 seconds
-      return () => clearInterval(interval);
-    }
-  }, [streamStatus]);
-
-
-  // --- EXISTING LOGIC ---
   const {
     snapshots,
     loading: snapshotsLoading,
@@ -140,34 +124,27 @@ export default function Index() {
   const [humidityHistory, setHumidityHistory] = useState<number[]>([]);
   const [ammoniaHistory, setAmmoniaHistory] = useState<number[]>([]);
 
-  // Fetch user display name
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const { data, error } = await supabase.auth.getUser();
         if (error) return;
-
         if (data?.user) {
           setUserName(
             (data.user.user_metadata?.full_name
               ? data.user.user_metadata.full_name.split(" ")[0]
-              : null) ||
-            data.user.email ||
-            "User"
+              : null) || data.user.email || "User"
           );
         }
       } catch (err) {
         console.error("Error in fetchUser:", err);
       }
     };
-
     fetchUser();
   }, []);
 
-  // Fetch readings every 5 seconds (Database/History)
   useEffect(() => {
     let interval: number;
-
     const loadReadings = async () => {
       setLoadingReadings(true);
       try {
@@ -184,7 +161,7 @@ export default function Index() {
           setReadings(data[data.length - 1]);
           setTempHistory(data.map((r) => r.t_avg_c ?? 0));
           setHumidityHistory(data.map((r) => r.humidity_rh ?? 0));
-          setAmmoniaHistory(data.map((r) => (r.gas_res_ohm ?? 0) / 1000)); // convert to kΩ
+          setAmmoniaHistory(data.map((r) => (r.gas_res_ohm ?? 0) / 1000)); 
         }
       } catch (err) {
         console.error("Error fetching readings:", err);
@@ -192,11 +169,30 @@ export default function Index() {
         setLoadingReadings(false);
       }
     };
-
     loadReadings();
     interval = setInterval(loadReadings, 5000);
     return () => clearInterval(interval);
   }, [deviceId]);
+
+  useEffect(() => {
+    let timer: any;
+
+    if (viewMode === 'optical') {
+      if (opticalStatus === 'error') {
+        timer = setTimeout(() => {
+          setOpticalStatus('loading');
+        }, 3000);
+      } else if (opticalStatus === 'loading') {
+        timer = setTimeout(() => {
+          setOpticalKey(prev => prev + 1); 
+          setOpticalStatus('connected');
+        }, 1000);
+      }
+    }
+
+    return () => clearTimeout(timer);
+  }, [opticalStatus, viewMode]);
+
 
   const formatDate = (dateString: string) => {
     try {
@@ -210,6 +206,15 @@ export default function Index() {
       return dateString;
     }
   };
+
+  const renderLoadingView = () => (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#487307" />
+      <Text style={{ marginTop: 10, color: '#666', fontWeight: '500' }}>
+        Reconnecting to Camera stream...
+      </Text>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -255,35 +260,74 @@ export default function Index() {
         {activeTab === "live" ? (
           <>
             <View style={styles.feedBox}>
-              {streamStatus === 'connected' && liveThermalData ? (
-                // Connected: Show Stream
-                <ThermalImage
-                  frameUrl={opticalFrameUrl}
-                  thermalData={liveThermalData}
-                  style={styles.liveImage}
-                  interpolationFactor={1.4} // change to change the live
-                  refreshInterval={0}
+              <TouchableOpacity 
+                style={styles.toggleButton}
+                onPress={() => setViewMode(prev => prev === 'thermal' ? 'optical' : 'thermal')}
+              >
+                <MaterialCommunityIcons 
+                  name={viewMode === 'thermal' ? "camera-iris" : "thermometer"} 
+                  size={20} 
+                  color="#fff" 
                 />
-              ) : streamStatus === 'error' ? (
-                // Error State
-                <View style={styles.errorContainer}>
-                  <MaterialCommunityIcons name="video-off-outline" size={40} color="#d32f2f" style={{ marginBottom: 10 }} />
-                  <Text style={styles.errorText}>Stream Offline</Text>
-                  <Text style={{fontSize: 12, color:'#999', marginTop: 5}}>{streamError}</Text>
+                <Text style={styles.toggleButtonText}>
+                  {viewMode === 'thermal' ? " View Camera" : "View Thermal"}
+                </Text>
+              </TouchableOpacity>
+
+              {viewMode === 'optical' ? (
+                <View style={styles.opticalContainer}>
+                   {opticalStatus === 'connected' ? (
+                      <WebView 
+                        key={opticalKey}
+                        source={{ uri: OPTICAL_URL }}
+                        style={{ flex: 1, backgroundColor: 'black' }}
+                        scrollEnabled={false}
+                        scalesPageToFit={true}
+                        javaScriptEnabled={false}
+                        startInLoadingState={true}
+                        renderLoading={renderLoadingView}
+                        onError={() => setOpticalStatus('error')}
+                        onHttpError={() => setOpticalStatus('error')}
+                      />
+                   ) : opticalStatus === 'error' ? (
+                      <View style={styles.errorContainer}>
+                        <MaterialCommunityIcons name="video-off-outline" size={40} color="#d32f2f" style={{ marginBottom: 10 }} />
+                        <Text style={styles.errorText}>Stream Offline</Text>
+                        <Text style={{fontSize: 12, color:'#999', marginTop: 5}}>Host not reachable</Text>
+                      </View>
+                   ) : (
+                      renderLoadingView()
+                   )}
                 </View>
               ) : (
-                // Connecting State
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color="#487307" />
-                  <Text style={{ marginTop: 10, color: '#666', fontWeight: '500' }}>
-                    Reconnecting to live stream...
-                  </Text>
-                </View>
+                <>
+                  {streamStatus === 'connected' && liveThermalData ? (
+                    <ThermalImage
+                      frameUrl={OPTICAL_URL} 
+                      thermalData={liveThermalData}
+                      style={styles.liveImage}
+                      interpolationFactor={1.4}
+                      refreshInterval={0}
+                    />
+                  ) : streamStatus === 'error' ? (
+                    <View style={styles.errorContainer}>
+                      <MaterialCommunityIcons name="video-off-outline" size={40} color="#d32f2f" style={{ marginBottom: 10 }} />
+                      <Text style={styles.errorText}>Stream Offline</Text>
+                      <Text style={{fontSize: 12, color:'#999', marginTop: 5}}>{streamError}</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator size="large" color="#487307" />
+                      <Text style={{ marginTop: 10, color: '#666', fontWeight: '500' }}>
+                        Reconnecting to thermal stream...
+                      </Text>
+                    </View>
+                  )}
+                </>
               )}
             </View>
-
+            
             <Text style={styles.penStatusTitle}>Pen Status</Text>
-
             <StatusCard
               title="Temperature"
               icon={<MaterialCommunityIcons name="thermometer-low" size={25} color="#fff" />}
@@ -291,7 +335,6 @@ export default function Index() {
               unit="°C"
               history={tempHistory}
             />
-
             <StatusCard
               title="Humidity"
               icon={<MaterialCommunityIcons name="water-outline" size={24} color="#fff" />}
@@ -299,7 +342,6 @@ export default function Index() {
               unit="%"
               history={humidityHistory}
             />
-
             <StatusCard
               title="Ammonia"
               icon={<MaterialCommunityIcons name="weather-fog" size={16} color="#fff" />}
@@ -309,16 +351,12 @@ export default function Index() {
             />
           </>
         ) : (
-          // --- DIARY TAB (UNCHANGED) ---
           <View style={styles.diaryContainer}>
-            {snapshotsError ? (
+             {snapshotsError ? (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>Error loading snapshots</Text>
                 <Text style={styles.errorSubText}>{snapshotsError}</Text>
-                <TouchableOpacity
-                  onPress={refresh}
-                  style={styles.retryButton}
-                >
+                <TouchableOpacity onPress={refresh} style={styles.retryButton}>
                   <Text style={styles.retryButtonText}>Try Again</Text>
                 </TouchableOpacity>
               </View>
@@ -326,9 +364,7 @@ export default function Index() {
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateIcon}>📸</Text>
                 <Text style={styles.emptyStateText}>No snapshots yet</Text>
-                <Text style={styles.emptyStateSubText}>
-                  Snapshots will appear here when available
-                </Text>
+                <Text style={styles.emptyStateSubText}>Snapshots will appear here when available</Text>
               </View>
             ) : (
               <>
@@ -339,7 +375,7 @@ export default function Index() {
                         frameUrl={snapshot.imageUrl}
                         thermalUrl={snapshot.thermalUrl}
                         style={styles.snapshotImage}
-                        refreshInterval={0} // Static images, no polling needed
+                        refreshInterval={0}
                       />
                     ) : (
                       <View style={styles.snapshotPlaceholder}>
@@ -352,43 +388,25 @@ export default function Index() {
                         <View style={styles.readingInfo}>
                           <View style={{ flexDirection: "row", alignItems: "center" }}>
                             <MaterialCommunityIcons name="thermometer" size={20} color="#333" />
-                            <Text style={styles.readingText}>
-                              {snapshot.reading.t_avg_c?.toFixed(1) || "N/A"} °C
-                            </Text>
+                            <Text style={styles.readingText}>{snapshot.reading.t_avg_c?.toFixed(1) || "N/A"} °C</Text>
                           </View>
                           <View style={{ flexDirection: "row", alignItems: "center" }}>
                             <MaterialCommunityIcons name="water" size={20} color="#333" />
-                            <Text style={styles.readingText}>
-                              {snapshot.reading.humidity_rh?.toFixed(1) || "N/A"} %
-                            </Text>
+                            <Text style={styles.readingText}>{snapshot.reading.humidity_rh?.toFixed(1) || "N/A"} %</Text>
                           </View>
                         </View>
                       )}
                     </View>
                   </View>
                 ))}
-
-                {snapshotsLoading && (
-                  <ActivityIndicator
-                    style={styles.loader}
-                    size="small"
-                    color="#487307"
-                  />
-                )}
-
+                {snapshotsLoading && <ActivityIndicator style={styles.loader} size="small" color="#487307" />}
                 {hasMore && !snapshotsLoading && (
-                  <TouchableOpacity
-                    onPress={loadMore}
-                    style={styles.loadMoreButton}
-                  >
+                  <TouchableOpacity onPress={loadMore} style={styles.loadMoreButton}>
                     <Text style={styles.loadMoreText}>Load More</Text>
                   </TouchableOpacity>
                 )}
-
                 {!hasMore && snapshots.length > 0 && (
-                  <Text style={styles.noMoreText}>
-                    No more snapshots to load
-                  </Text>
+                  <Text style={styles.noMoreText}>No more snapshots to load</Text>
                 )}
               </>
             )}
@@ -399,173 +417,91 @@ export default function Index() {
   );
 }
 
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  header: {
-    backgroundColor: "#487307",
-    paddingTop: 30,
-    paddingVertical: 30,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  headerTopRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "flex-start",
-    marginBottom: 10,
-  },
+  header: { backgroundColor: "#487307", paddingTop: 30, paddingVertical: 30, paddingHorizontal: 20, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
+  headerTopRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "flex-start", marginBottom: 10 },
   logo: { width: 60, height: 55, resizeMode: "contain", marginLeft: -20 },
-  welcomeText: {
-    fontSize: 25,
-    fontWeight: "bold",
-    color: "#fff",
-    marginTop: 2,
-    marginLeft: 15,
-  },
+  welcomeText: { fontSize: 25, fontWeight: "bold", color: "#fff", marginTop: 2, marginLeft: 15 },
   subText: { fontSize: 14, color: "#d8f2c1", marginTop: 4, marginLeft: 15 },
-  tabs: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 12,
-    backgroundColor: "#f5f5f5",
-  },
+  tabs: { flexDirection: "row", justifyContent: "space-around", paddingVertical: 12, backgroundColor: "#f5f5f5" },
   tabText: { fontSize: 14, color: "#555", fontWeight: "500" },
-  activeTab: {
-    fontWeight: "bold",
-    borderBottomWidth: 2,
-    borderBottomColor: "#487307",
-    color: "#487307",
-  },
+  activeTab: { fontWeight: "bold", borderBottomWidth: 2, borderBottomColor: "#487307", color: "#487307" },
   scrollArea: { flex: 1, padding: 16 },
+  
   feedBox: {
-    height: 250, // Slightly taller for better view
+    height: 250, 
     borderRadius: 10,
     backgroundColor: "#e6e6e6",
-    alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
     overflow: "hidden",
+    position: 'relative', 
   },
+
+  opticalContainer: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#e6e6e6', 
+    justifyContent: 'center',   
+    alignItems: 'center'        
+  },
+
   liveImage: { width: "100%", height: "100%", borderRadius: 10 },
-  noFeedText: { fontSize: 16, color: "#888" },
-  loadingContainer: {
+  toggleButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 10,
+    backgroundColor: "#487307",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center'
   },
-  penStatusTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 10,
+
+  toggleButtonText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  
+  noFeedText: { fontSize: 16, color: "#888" },
+  
+  loadingContainer: { 
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    backgroundColor: '#e6e6e6',
+    height: '100%', 
+    width: '100%' 
   },
-  statusCard: {
-    backgroundColor: "#f9f9f9",
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#ddd",
-  },
+  
+  errorContainer: { alignItems: "center", justifyContent: "center", padding: 16 },
+  errorText: { fontSize: 16, color: "#d32f2f", fontWeight: "600", marginBottom: 4 },
+  errorSubText: { fontSize: 14, color: "#666", textAlign: "center", marginBottom: 12 },
+  
+  penStatusTitle: { fontSize: 18, fontWeight: "bold", color: "#333", marginBottom: 10 },
+  statusCard: { backgroundColor: "#f9f9f9", borderRadius: 10, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: "#ddd" },
   cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
   cardTitle: { fontSize: 18, fontWeight: "600", color: "#737375" },
-  cardBody: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  cardValue: {
-    fontSize: 30, color: "#1FCB4F", fontWeight: "500",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1.7,
-    borderRadius: 8,
-    borderColor: "#E8E8E8",
-    padding: 5,
-  },
+  cardBody: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  cardValue: { fontSize: 30, color: "#1FCB4F", fontWeight: "500", backgroundColor: "#FFFFFF", borderWidth: 1.7, borderRadius: 8, borderColor: "#E8E8E8", padding: 5 },
   diaryContainer: { padding: 4 },
-  snapshotCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: "hidden",
-  },
+  snapshotCard: { backgroundColor: "#fff", borderRadius: 12, marginBottom: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3, overflow: "hidden" },
   snapshotImage: { width: "100%", height: 200 },
-  snapshotPlaceholder: {
-    width: "100%",
-    height: 200,
-    backgroundColor: "#e6e6e6",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  snapshotPlaceholder: { width: "100%", height: 200, backgroundColor: "#e6e6e6", justifyContent: "center", alignItems: "center" },
   placeholderText: { color: "#888", fontSize: 14 },
   snapshotInfo: { padding: 12 },
-  snapshotDate: {
-    fontSize: 14,
-    fontWeight: "400",
-    color: "#333",
-    marginBottom: 8,
-  },
+  snapshotDate: { fontSize: 14, fontWeight: "400", color: "#333", marginBottom: 8 },
   readingInfo: { flexDirection: "row", justifyContent: "space-between" },
   readingText: { fontSize: 12, color: "#666" },
   loader: { marginVertical: 16 },
-  loadMoreButton: {
-    backgroundColor: "#487307",
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    marginVertical: 16,
-  },
+  loadMoreButton: { backgroundColor: "#487307", padding: 12, borderRadius: 8, alignItems: "center", marginVertical: 16 },
   loadMoreText: { color: "#fff", fontWeight: "600" },
-  noMoreText: {
-    textAlign: "center",
-    color: "#666",
-    marginVertical: 16,
-    fontStyle: "italic",
-  },
-  emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 40,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-    marginVertical: 20,
-  },
+  noMoreText: { textAlign: "center", color: "#666", marginVertical: 16, fontStyle: "italic" },
+  emptyState: { alignItems: "center", justifyContent: "center", padding: 40, backgroundColor: "#f9f9f9", borderRadius: 12, marginVertical: 20 },
   emptyStateIcon: { fontSize: 40, marginBottom: 12 },
-  emptyStateText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 4,
-  },
+  emptyStateText: { fontSize: 16, fontWeight: "600", color: "#333", marginBottom: 4 },
   emptyStateSubText: { fontSize: 14, color: "#666", textAlign: "center" },
-  errorContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-  },
-  errorText: {
-    fontSize: 16,
-    color: "#d32f2f",
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  errorSubText: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  retryButton: {
-    backgroundColor: "#487307",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
+  retryButton: { backgroundColor: "#487307", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 6 },
   retryButtonText: { color: "#fff", fontWeight: "500" },
 });
