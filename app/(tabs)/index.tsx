@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
-import { LineChart } from "react-native-svg-charts";
+// Corrected import: Using gifted charts
+import { LineChart } from "react-native-gifted-charts";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 
@@ -22,7 +23,7 @@ import { DEVICE_ID } from "@/constants";
 import { fetchReadings, ReadingRow } from "@/features/readings/api";
 
 const STREAM_URL = "http://192.168.1.102:8787/thermal-stream";
-const OPTICAL_URL = "http://192.168.1.103:81/stream"; 
+const OPTICAL_URL = "http://192.168.1.103:81/stream";
 
 type LiveStreamProps = {
   streamUrl: string;
@@ -32,33 +33,33 @@ type LiveStreamProps = {
 
 const LiveStreamView = ({ streamUrl, onLoadStart, onError }: LiveStreamProps) => {
   const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <style>
-          html, body { margin: 0; padding: 0; background-color: black; height: 100%; width: 100%; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-          img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; }
-        </style>
-      </head>
-      <body>
-        <img src="${streamUrl}" onerror="window.ReactNativeWebView.postMessage('ERROR')" />
-      </body>
-    </html>
-  `;
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+html, body { margin: 0; padding: 0; background-color: black; height: 100%; width: 100%; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; }
+</style>
+</head>
+<body>
+<img src="${streamUrl}" onerror="window.ReactNativeWebView.postMessage('ERROR')" />
+</body>
+</html>
+`;
 
   return (
     <WebView
       originWhitelist={['*']}
-      source={{ html: htmlContent, baseUrl: streamUrl }} 
+      source={{ html: htmlContent, baseUrl: streamUrl }}
       style={{ flex: 1, backgroundColor: 'black' }}
       scrollEnabled={false}
-      mixedContentMode="always" 
+      mixedContentMode="always"
       javaScriptEnabled={true}
       domStorageEnabled={true}
       startInLoadingState={true}
-      androidLayerType="hardware" 
-      renderLoading={onLoadStart} 
+      androidLayerType="hardware"
+      renderLoading={onLoadStart}
       onMessage={(event) => {
         if (event.nativeEvent.data === 'ERROR' && onError) onError();
       }}
@@ -82,7 +83,7 @@ const StatusCard = memo(({ title, icon, value, unit, history }: any) => {
     if (title === "Ammonia") {
       return value >= 10 ? "#D32F2F" : "#4C505D";
     }
-    return "#4C505D";
+    return "#487307";
   };
 
   const prepareData = (arr: number[]) => {
@@ -97,39 +98,42 @@ const StatusCard = memo(({ title, icon, value, unit, history }: any) => {
 
   const chartData = prepareData(history);
 
+  const displayValue = `${value} ${unit}`;
+
   return (
     <View style={styles.statusCard}>
       <View style={styles.cardHeader}>
-        <View style={{ width: 40, height: 40, borderRadius: 100, backgroundColor: "#487307", alignItems: "center", justifyContent: "center", marginRight: 10 }}>
+        <View style={{ width: 50, height: 40, borderRadius: 100, backgroundColor: "#487307", alignItems: "center", justifyContent: "center", marginRight: 8 }}>
           {icon}
         </View>
         <Text style={styles.cardTitle}>{title}</Text>
       </View>
       <View style={styles.cardBody}>
-        <Text style={[styles.cardValue, { color: getColor() }]}>
-          {value}
-          <Text style={{ fontSize: styles.cardValue.fontSize * 0.6, transform: [{ translateY: -6 }] }}>{unit}</Text>
-        </Text>
-        
-        {/* FIX 3: Use Gifted Charts to prevent crashes and type errors */}
+        <View style={styles.cardValueWrapper}>
+          <Text style={[styles.cardValue, { color: getColor() }]}>
+            {displayValue}
+          </Text>
+        </View>
         {chartData.length > 1 && (
-          <View style={{ width: 150, height: 40, justifyContent: "center", overflow: 'hidden' }}>
-            <LineChart
-              data={chartData}
-              height={40}
-              width={150}
-              color={getLineColor()}
-              thickness={3}
-              curved={true}
-              hideRules
-              hideDataPoints
-              hideYAxisText
-              hideAxesAndRules
-              initialSpacing={0}
-              endSpacing={0}
-              adjustToWidth
-              isAnimated
-            />
+          <View style={styles.cardChartWrapper}>
+            <View style={{ width: 180, height: "auto", justifyContent: "center", overflow: 'hidden', marginVertical: -2 }}>
+              <LineChart
+                data={chartData}
+                height={40}
+                width={170}
+                color={getLineColor()}
+                thickness={3.5}
+                curved={true}
+                hideRules
+                hideDataPoints
+                hideYAxisText
+                hideAxesAndRules
+                initialSpacing={0}
+                endSpacing={0}
+                adjustToWidth
+                isAnimated
+              />
+            </View>
           </View>
         )}
       </View>
@@ -145,18 +149,18 @@ export default function Index() {
   const [activeTab, setActiveTab] = useState<"live" | "diary">("live");
   const [viewMode, setViewMode] = useState<"thermal" | "optical">("thermal");
   const [userName, setUserName] = useState<string | null>(null);
-  
+
   const [opticalStatus, setOpticalStatus] = useState<'connected' | 'error' | 'loading'>('connected');
-  const [opticalKey, setOpticalKey] = useState(0); 
+  const [opticalKey, setOpticalKey] = useState(0);
 
   const [diaryViewMode, setDiaryViewMode] = useState<"thermal" | "optical">("thermal");
 
   const deviceId = DEVICE_ID;
 
-  const { 
-    data: liveThermalData, 
-    status: streamStatus, 
-    error: streamError 
+  const {
+    data: liveThermalData,
+    status: streamStatus,
+    error: streamError
   } = useThermalSSE(STREAM_URL);
 
   const { snapshots, loading: snapshotsLoading, error: snapshotsError, hasMore, loadMore, refresh } = useSnapshots(deviceId);
@@ -191,25 +195,25 @@ export default function Index() {
           setReadings(data[data.length - 1]);
           setTempHistory(data.map((r) => r.t_avg_c ?? 0));
           setHumidityHistory(data.map((r) => r.humidity_rh ?? 0));
-          setAmmoniaHistory(data.map((r) => (r.gas_res_ohm ?? 0) / 1000)); 
+          setAmmoniaHistory(data.map((r) => (r.gas_res_ohm ?? 0) / 1000));
         }
       } catch (err) { } finally { setLoadingReadings(false); }
     };
     loadReadings();
-    
+
     // FIX 4: Add "as unknown as number" to fix TS error
     interval = setInterval(loadReadings, 5000) as unknown as number;
     return () => clearInterval(interval);
   }, [deviceId]);
 
   useEffect(() => {
-    let timer: any; 
+    let timer: any;
     if (viewMode === 'optical') {
       if (opticalStatus === 'error') {
         timer = setTimeout(() => setOpticalStatus('loading'), 3000);
       } else if (opticalStatus === 'loading') {
         timer = setTimeout(() => {
-          setOpticalKey(p => p + 1); 
+          setOpticalKey(p => p + 1);
           setOpticalStatus('connected');
         }, 1000);
       }
@@ -257,33 +261,33 @@ export default function Index() {
 
               {viewMode === 'optical' ? (
                 <View style={styles.opticalContainer}>
-                   {opticalStatus === 'connected' ? (
-                      <LiveStreamView key={opticalKey} streamUrl={OPTICAL_URL} onLoadStart={() => renderLoadingView("Connecting to Camera...")} onError={() => setOpticalStatus('error')} />
-                   ) : opticalStatus === 'error' ? (
-                      <View style={styles.errorContainer}>
-                        <MaterialCommunityIcons name="video-off-outline" size={40} color="#d32f2f" style={{ marginBottom: 10 }} />
-                        <Text style={styles.errorText}>Camera Offline</Text>
-                        <Text style={{fontSize: 12, color:'#999', marginTop: 5}}>Host not reachable</Text>
-                      </View>
-                   ) : (
-                      renderLoadingView("Reconnecting to Camera...")
-                   )}
+                  {opticalStatus === 'connected' ? (
+                    <LiveStreamView key={opticalKey} streamUrl={OPTICAL_URL} onLoadStart={() => renderLoadingView("Connecting to Camera...")} onError={() => setOpticalStatus('error')} />
+                  ) : opticalStatus === 'error' ? (
+                    <View style={styles.errorContainer}>
+                      <MaterialCommunityIcons name="video-off-outline" size={40} color="#d32f2f" style={{ marginBottom: 10 }} />
+                      <Text style={styles.errorText}>Camera Offline</Text>
+                      <Text style={{ fontSize: 12, color: '#999', marginTop: 5 }}>Host not reachable</Text>
+                    </View>
+                  ) : (
+                    renderLoadingView("Reconnecting to Camera...")
+                  )}
                 </View>
               ) : (
                 <View style={styles.opticalContainer}>
                   {streamStatus === 'connected' && liveThermalData ? (
                     <ThermalImage
-                      frameUrl={OPTICAL_URL} 
+                      frameUrl={OPTICAL_URL}
                       thermalData={liveThermalData}
                       style={styles.liveImage}
                       interpolationFactor={1.4}
-                      refreshInterval={0} 
+                      refreshInterval={0}
                     />
                   ) : streamStatus === 'error' ? (
                     <View style={styles.errorContainer}>
                       <MaterialCommunityIcons name="video-off-outline" size={40} color="#d32f2f" style={{ marginBottom: 10 }} />
                       <Text style={styles.errorText}>Thermal Offline</Text>
-                      <Text style={{fontSize: 12, color:'#999', marginTop: 5}}>{streamError}</Text>
+                      <Text style={{ fontSize: 12, color: '#999', marginTop: 5 }}>{streamError}</Text>
                     </View>
                   ) : (
                     renderLoadingView("Connecting to Thermal...")
@@ -291,7 +295,7 @@ export default function Index() {
                 </View>
               )}
             </View>
-            
+
             <Text style={styles.penStatusTitle}>Pen Status</Text>
             <StatusCard title="Temperature" icon={<MaterialCommunityIcons name="thermometer-low" size={25} color="#fff" />} value={readings?.t_avg_c?.toFixed(1) ?? "N/A"} unit="°C" history={tempHistory} />
             <StatusCard title="Humidity" icon={<MaterialCommunityIcons name="water-outline" size={24} color="#fff" />} value={readings?.humidity_rh?.toFixed(1) ?? "N/A"} unit="%" history={humidityHistory} />
@@ -299,24 +303,24 @@ export default function Index() {
           </>
         ) : (
           <View style={styles.diaryContainer}>
-             <View style={styles.diaryHeaderRow}>
-                <Text style={styles.diaryTitle}>Latest Snapshots</Text>
-                <TouchableOpacity 
-                  style={styles.diaryToggleButton}
-                  onPress={() => setDiaryViewMode(prev => prev === 'thermal' ? 'optical' : 'thermal')}
-                >
-                  <MaterialCommunityIcons 
-                    name={diaryViewMode === 'thermal' ? "camera-iris" : "thermometer"} 
-                    size={16} 
-                    color="#fff" 
-                  />
-                  <Text style={styles.diaryToggleText}>
-                    {diaryViewMode === 'thermal' ? "Show Camera" : "Show Thermal"}
-                  </Text>
-                </TouchableOpacity>
-             </View>
+            <View style={styles.diaryHeaderRow}>
+              <Text style={styles.diaryTitle}>Latest Snapshots</Text>
+              <TouchableOpacity
+                style={styles.diaryToggleButton}
+                onPress={() => setDiaryViewMode(prev => prev === 'thermal' ? 'optical' : 'thermal')}
+              >
+                <MaterialCommunityIcons
+                  name={diaryViewMode === 'thermal' ? "camera-iris" : "thermometer"}
+                  size={16}
+                  color="#fff"
+                />
+                <Text style={styles.diaryToggleText}>
+                  {diaryViewMode === 'thermal' ? "Show Camera" : "Show Thermal"}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-             {snapshotsError ? (
+            {snapshotsError ? (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>Error loading snapshots</Text>
                 <Text style={styles.errorSubText}>{snapshotsError}</Text>
@@ -393,11 +397,13 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 16, color: "#d32f2f", fontWeight: "600", marginBottom: 4 },
   errorSubText: { fontSize: 14, color: "#666", textAlign: "center", marginBottom: 12 },
   penStatusTitle: { fontSize: 18, fontWeight: "bold", color: "#333", marginBottom: 10 },
-  statusCard: { backgroundColor: "#f9f9f9", borderRadius: 10, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: "#ddd" },
+  statusCard: { backgroundColor: "#f9f9f9", borderRadius: 10, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: "#ddd" },
   cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
   cardTitle: { fontSize: 18, fontWeight: "600", color: "#737375" },
   cardBody: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  cardValue: { fontSize: 30, color: "#1FCB4F", fontWeight: "500", backgroundColor: "#FFFFFF", borderWidth: 1.7, borderRadius: 8, borderColor: "#E8E8E8", padding: 5 },
+  cardValueWrapper: { width: '20%', minWidth: 100, alignItems: 'flex-start' },
+  cardChartWrapper: { width: '80%', alignItems: 'flex-start', paddingLeft: 10 },
+  cardValue: { fontSize: 24, color: "#1FCB4F", fontWeight: "500", backgroundColor: "#FFFFFF", borderWidth: 1.7, borderRadius: 10, borderColor: "#E8E8E8", padding: 7},
   diaryContainer: { padding: 4 },
   diaryHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingHorizontal: 4 },
   diaryTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },

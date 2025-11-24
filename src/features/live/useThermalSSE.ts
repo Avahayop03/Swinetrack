@@ -16,13 +16,8 @@ export function useThermalSSE(url: string) {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  // Refs for managing connection and update loops
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
-  // 1. Create a Ref to hold the absolute latest data instantly
   const latestDataRef = useRef<ThermalPayload | null>(null);
-  
-  // 2. specific flag to ensure we don't stack UI updates
   const animationFrameId = useRef<number | null>(null);
 
   useEffect(() => {
@@ -69,13 +64,9 @@ export function useThermalSSE(url: string) {
         }
 
         if (payload) {
-          // 3. Update the Ref immediately (synchronous, no render)
           latestDataRef.current = payload;
-
-          // 4. Only schedule a render if one isn't already waiting
           if (animationFrameId.current === null) {
             animationFrameId.current = requestAnimationFrame(() => {
-              // When the UI is ready, take whatever is currently in the Ref
               if (latestDataRef.current) {
                 setData(latestDataRef.current);
               }
@@ -107,8 +98,6 @@ export function useThermalSSE(url: string) {
       es.removeAllEventListeners();
       es.close();
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-      
-      // Cleanup animation frame on unmount
       if (animationFrameId.current !== null) {
         cancelAnimationFrame(animationFrameId.current);
         animationFrameId.current = null;

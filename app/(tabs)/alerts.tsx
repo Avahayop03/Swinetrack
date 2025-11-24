@@ -15,7 +15,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { listAlerts } from "@/features/alerts/api";
 import { DEVICE_ID } from "@/constants";
 
-// Define AlertRow type here if not exported from api
 type AlertRow = {
   id: string;
   alert_type: string;
