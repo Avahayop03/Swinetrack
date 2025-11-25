@@ -5,31 +5,65 @@ import { WebView } from 'react-native-webview';
 type Props = {
   streamUrl: string;
   style?: any;
+  onLoadStart?: () => void;
+  onError?: () => void;
 };
 
-export function LiveStreamView({ streamUrl, style }: Props) {
+export function LiveStreamView({ streamUrl, style, onLoadStart, onError }: Props) {
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          /* 1. Make background grey so we can see if WebView is working */
+          body { margin: 0; background: #222; height: 100vh; display: flex; justify-content: center; align-items: center; }
+          
+          /* 2. Force image to fill screen and add debug border */
+          img { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: contain; 
+            border: 2px solid red; /* Debug Border */
+          }
+        </style>
+      </head>
+      <body>
+        <script>
+          function log(type, msg) {
+             window.ReactNativeWebView.postMessage(JSON.stringify({ type: type, message: msg }));
+          }
+        </script>
+        
+        <img 
+          src="${streamUrl}" 
+          onload="if(this.naturalWidth > 0) { log('SUCCESS', 'Size: ' + this.naturalWidth + 'x' + this.naturalHeight); } else { log('WARN', 'Image loaded but width is 0'); }"
+          onerror="log('ERROR', 'Stream failed')"
+        />
+      </body>
+    </html>
+  `;
+
   return (
     <View style={[styles.container, style]}>
       <WebView
         originWhitelist={['*']}
-        source={{
-          html: `
-            <html>
-              <body style="margin:0;padding:0;background:black;display:flex;justify-content:center;align-items:center;height:100vh;">
-                <img src="${streamUrl}" style="width:100%;height:100%;object-fit:contain;" />
-              </body>
-            </html>
-          `,
-        }}
-        style={{ flex: 1, backgroundColor: 'black' }}
+        source={{ html: htmlContent }}
+        style={{ flex: 1, backgroundColor: '#222' }} // Match body background
         scrollEnabled={false}
-        pointerEvents="none"
-        startInLoadingState={true}
-        renderLoading={() => (
-          <View style={styles.loading}>
-            <ActivityIndicator size="large" color="#487307" />
-          </View>
-        )}
+        mixedContentMode="always"
+        javaScriptEnabled={true}
+        
+        // --- CRITICAL FIXES ---
+        androidLayerType="software" // Fixes black screen on MJPEG streams
+        opacity={0.99} // Hack to force React Native to render WebView content on some Androids
+        
+        onMessage={(event) => {
+          try {
+            const data = JSON.parse(event.nativeEvent.data);
+            console.log(`[Stream] ${data.type}: ${data.message}`);
+          } catch(e) {}
+        }}
       />
     </View>
   );
@@ -39,6 +73,7 @@ const styles = StyleSheet.create({
   container: {
     overflow: 'hidden',
     backgroundColor: '#000',
+    flex: 1, // Ensure it fills the parent
   },
   loading: {
     ...StyleSheet.absoluteFillObject,

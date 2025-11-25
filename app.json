@@ -8,9 +8,16 @@
     "scheme": "swinetrack",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "ios": {},
+    "ios": {
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
+    },
     "android": {
-      "package": "com.jerfox17.swinetrack"
+      "package": "com.jerfox17.swinetrack",
+      "permissions": ["INTERNET", "ACCESS_WIFI_STATE"]
     },
     "web": {
       "bundler": "metro",
@@ -29,7 +36,15 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

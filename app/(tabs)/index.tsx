@@ -22,6 +22,7 @@ import { useSnapshots } from "@/features/snapshots/useSnapshots";
 import { ThermalImage } from "@/components/ThermalImage";
 import { DEVICE_ID } from "@/constants";
 import { fetchReadings, ReadingRow } from "@/features/readings/api";
+import { useKeepAwake } from 'expo-keep-awake';
 
 const STREAM_URL = "http://192.168.1.102:8787/thermal-stream";
 const OPTICAL_URL = "http://192.168.1.103:81/stream";
@@ -35,40 +36,89 @@ type LiveStreamProps = {
 // --- HELPER COMPONENTS ---
 
 const LiveStreamView = ({ streamUrl, onLoadStart, onError }: LiveStreamProps) => {
+  // We inject a script to catch specific loading events and send them to the App
   const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
-html, body { margin: 0; padding: 0; background-color: black; height: 100%; width: 100%; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; }
+  /* 1. Ensure body fills the WebView */
+  body { 
+    margin: 0; 
+    padding: 0; 
+    background-color: #000; 
+    height: 100vh; 
+    width: 100vw; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    overflow: hidden; 
+  }
+  
+  /* 2. Force image to cover the screen */
+  img { 
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%; 
+    height: 100%; 
+    object-fit: contain; 
+  }
 </style>
 </head>
 <body>
-<img src="${streamUrl}" onerror="window.ReactNativeWebView.postMessage('ERROR')" />
+<script>
+  function sendLog(type, msg) {
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: type, message: msg }));
+  }
+</script>
+
+<img 
+  src="${streamUrl}" 
+  onload="if(this.naturalWidth > 0) { sendLog('SUCCESS', 'Image loaded. Size: ' + this.naturalWidth + 'x' + this.naturalHeight); } else { sendLog('WARN', 'Image loaded but width is 0'); }"
+  onerror="sendLog('IMG_ERROR', 'Image failed to load via HTML tag.')"
+/>
+
 </body>
 </html>
 `;
 
   return (
-    <WebView
-      originWhitelist={['*']}
-      source={{ html: htmlContent, baseUrl: streamUrl }}
-      style={{ flex: 1, backgroundColor: 'black' }}
-      scrollEnabled={false}
-      mixedContentMode="always"
-      javaScriptEnabled={true}
-      domStorageEnabled={true}
-      startInLoadingState={true}
-      androidLayerType="hardware"
-      renderLoading={onLoadStart}
-      onMessage={(event) => {
-        if (event.nativeEvent.data === 'ERROR' && onError) onError();
-      }}
-      onError={() => onError && onError()}
-      onHttpError={() => onError && onError()}
-    />
+    // FIX: Explicitly set width: '100%' to prevent parent 'alignItems: center' from crushing it
+    <View style={{ flex: 1, width: '100%', backgroundColor: '#000' }}>
+      <WebView
+        originWhitelist={['*']}
+        source={{ html: htmlContent }} 
+        style={{ flex: 1, backgroundColor: '#000' }}
+        scrollEnabled={false}
+        mixedContentMode="always" 
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        startInLoadingState={true}
+        renderLoading={onLoadStart}
+        
+        // --- CRITICAL FIXES FOR ANDROID VIDEO ---
+        androidLayerType="software" 
+        opacity={0.99} 
+        
+        onMessage={(event) => {
+          try {
+            const data = JSON.parse(event.nativeEvent.data);
+            console.log(`[WebView Stream] ${data.type}:`, data.message);
+            if (data.type === 'IMG_ERROR' && onError) onError();
+          } catch (e) {
+            if (event.nativeEvent.data === 'ERROR' && onError) onError();
+          }
+        }}
+
+        onHttpError={(syntheticEvent) => {
+            // Optional: Log HTTP errors
+        }}
+        
+        onError={() => onError && onError()}
+      />
+    </View>
   );
 };
 
@@ -154,6 +204,8 @@ export default function Index() {
 
   const [opticalStatus, setOpticalStatus] = useState<'connected' | 'error' | 'loading'>('connected');
   const [opticalKey, setOpticalKey] = useState(0);
+
+  useKeepAwake();
 
   const deviceId = DEVICE_ID;
 
@@ -244,7 +296,6 @@ export default function Index() {
               thermalUrl={snapshot.thermalUrl}
               style={styles.snapshotImage}
               refreshInterval={0}
-              // OPTIMIZATION: Use 1 for snapshots to reduce lag (skips heavy smoothing)
               interpolationFactor={1.1}
             />
           ) : (
@@ -295,8 +346,6 @@ export default function Index() {
         </TouchableOpacity>
       </View>
 
-      {/* CONDITIONAL RENDERING: SCROLLVIEW FOR LIVE, FLATLIST FOR DIARY */}
-      
       {activeTab === "live" ? (
         <ScrollView style={styles.scrollArea} contentContainerStyle={{ paddingBottom: 40 }}>
           <View style={styles.feedBox}>
@@ -348,7 +397,6 @@ export default function Index() {
           <StatusCard title="Ammonia" icon={<MaterialCommunityIcons name="weather-fog" size={16} color="#fff" />} value={readings?.gas_res_ohm ? (readings.gas_res_ohm / 1000).toFixed(1) : "N/A"} unit="kΩ" history={ammoniaHistory} />
         </ScrollView>
       ) : (
-        // --- DIARY VIEW (FlatList for Performance) ---
         <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
           {snapshotsError ? (
             <View style={styles.errorContainer}>
@@ -364,13 +412,10 @@ export default function Index() {
               keyExtractor={(item) => item.id.toString()}
               renderItem={renderSnapshotItem}
               contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-              
-              // --- PERFORMANCE PROPS ---
               initialNumToRender={3}
               maxToRenderPerBatch={3}
               windowSize={5}
               removeClippedSubviews={true} 
-              
               refreshControl={
                 <RefreshControl refreshing={snapshotsLoading} onRefresh={refresh} colors={["#487307"]} />
               }
@@ -418,7 +463,14 @@ const styles = StyleSheet.create({
   activeTab: { fontWeight: "bold", borderBottomWidth: 2, borderBottomColor: "#487307", color: "#487307" },
   scrollArea: { flex: 1, padding: 16 },
   feedBox: { height: 250, borderRadius: 10, backgroundColor: "#e6e6e6", justifyContent: "center", marginBottom: 16, overflow: "hidden", position: 'relative' },
-  opticalContainer: { width: '100%', height: '100%', backgroundColor: '#e6e6e6', justifyContent: 'center', alignItems: 'center' },
+  opticalContainer: { 
+    width: '100%', 
+    height: '100%',
+    backgroundColor: '#e6e6e6', 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    flex: 1 
+  },
   liveImage: { width: "100%", height: "100%", borderRadius: 10 },
   toggleButton: { position: 'absolute', top: 10, left: 10, zIndex: 10, backgroundColor: "#487307", paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: 6 },
   toggleButtonText: { color: '#fff', fontSize: 12, fontWeight: '600' },
