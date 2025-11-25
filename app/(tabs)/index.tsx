@@ -1,10 +1,9 @@
 import { useRouter } from "expo-router";
-// Corrected import: Using gifted charts
 import { LineChart } from "react-native-gifted-charts";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 
-import React, { useState, useEffect, memo } from "react";
+import React, { useState, useEffect, memo, useCallback } from "react";
 import {
   Image,
   ScrollView,
@@ -13,7 +12,9 @@ import {
   View,
   ActivityIndicator,
   RefreshControl,
-  StyleSheet
+  StyleSheet,
+  FlatList,
+  ListRenderItem
 } from "react-native";
 import { supabase } from "@/lib/supabase";
 import { useThermalSSE } from "@/features/live/useThermalSSE";
@@ -30,6 +31,8 @@ type LiveStreamProps = {
   onLoadStart?: () => React.ReactElement;
   onError?: () => void;
 };
+
+// --- HELPER COMPONENTS ---
 
 const LiveStreamView = ({ streamUrl, onLoadStart, onError }: LiveStreamProps) => {
   const htmlContent = `
@@ -97,7 +100,6 @@ const StatusCard = memo(({ title, icon, value, unit, history }: any) => {
   };
 
   const chartData = prepareData(history);
-
   const displayValue = `${value} ${unit}`;
 
   return (
@@ -153,8 +155,6 @@ export default function Index() {
   const [opticalStatus, setOpticalStatus] = useState<'connected' | 'error' | 'loading'>('connected');
   const [opticalKey, setOpticalKey] = useState(0);
 
-  const [diaryViewMode, setDiaryViewMode] = useState<"thermal" | "optical">("thermal");
-
   const deviceId = DEVICE_ID;
 
   const {
@@ -201,7 +201,6 @@ export default function Index() {
     };
     loadReadings();
 
-    // FIX 4: Add "as unknown as number" to fix TS error
     interval = setInterval(loadReadings, 5000) as unknown as number;
     return () => clearInterval(interval);
   }, [deviceId]);
@@ -235,6 +234,48 @@ export default function Index() {
     </View>
   );
 
+  const renderSnapshotItem: ListRenderItem<any> = useCallback(({ item: snapshot }) => {
+    return (
+      <View style={styles.snapshotCard}>
+        <View style={styles.snapshotImageContainer}>
+          {snapshot.imageUrl && snapshot.thermalUrl ? (
+            <ThermalImage
+              frameUrl={snapshot.imageUrl}
+              thermalUrl={snapshot.thermalUrl}
+              style={styles.snapshotImage}
+              refreshInterval={0}
+              // OPTIMIZATION: Use 1 for snapshots to reduce lag (skips heavy smoothing)
+              interpolationFactor={1.1}
+            />
+          ) : (
+            <View style={styles.snapshotPlaceholder}>
+              <Text style={styles.placeholderText}>No image available</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.snapshotInfo}>
+          <Text style={styles.snapshotDate}>{formatDate(snapshot.ts)}</Text>
+          {snapshot.reading && (
+            <View style={styles.readingInfo}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <MaterialCommunityIcons name="thermometer" size={20} color="#333" />
+                <Text style={styles.readingText}>
+                  {snapshot.reading.t_avg_c?.toFixed(1) || "N/A"} °C
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <MaterialCommunityIcons name="water" size={20} color="#333" />
+                <Text style={styles.readingText}>
+                  {snapshot.reading.humidity_rh?.toFixed(1) || "N/A"} %
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  }, []);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -246,149 +287,121 @@ export default function Index() {
       </View>
 
       <View style={styles.tabs}>
-        <TouchableOpacity onPress={() => setActiveTab("live")}><Text style={[styles.tabText, activeTab === "live" && styles.activeTab]}>Live Feed</Text></TouchableOpacity>
-        <TouchableOpacity onPress={() => setActiveTab("diary")}><Text style={[styles.tabText, activeTab === "diary" && styles.activeTab]}>Snapshots Diary</Text></TouchableOpacity>
+        <TouchableOpacity onPress={() => setActiveTab("live")}>
+          <Text style={[styles.tabText, activeTab === "live" && styles.activeTab]}>Live Feed</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setActiveTab("diary")}>
+          <Text style={[styles.tabText, activeTab === "diary" && styles.activeTab]}>Snapshots Diary</Text>
+        </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollArea} contentContainerStyle={{ paddingBottom: 40 }} refreshControl={activeTab === "diary" ? (<RefreshControl refreshing={snapshotsLoading} onRefresh={refresh} colors={["#487307"]} />) : undefined}>
-        {activeTab === "live" ? (
-          <>
-            <View style={styles.feedBox}>
-              <TouchableOpacity style={styles.toggleButton} onPress={() => setViewMode(prev => prev === 'thermal' ? 'optical' : 'thermal')}>
-                <MaterialCommunityIcons name={viewMode === 'thermal' ? "camera-iris" : "thermometer"} size={20} color="#fff" />
-                <Text style={styles.toggleButtonText}>{viewMode === 'thermal' ? " View Camera" : "View Thermal"}</Text>
-              </TouchableOpacity>
+      {/* CONDITIONAL RENDERING: SCROLLVIEW FOR LIVE, FLATLIST FOR DIARY */}
+      
+      {activeTab === "live" ? (
+        <ScrollView style={styles.scrollArea} contentContainerStyle={{ paddingBottom: 40 }}>
+          <View style={styles.feedBox}>
+            <TouchableOpacity style={styles.toggleButton} onPress={() => setViewMode(prev => prev === 'thermal' ? 'optical' : 'thermal')}>
+              <MaterialCommunityIcons name={viewMode === 'thermal' ? "camera-iris" : "thermometer"} size={20} color="#fff" />
+              <Text style={styles.toggleButtonText}>{viewMode === 'thermal' ? " View Camera" : "View Thermal"}</Text>
+            </TouchableOpacity>
 
-              {viewMode === 'optical' ? (
-                <View style={styles.opticalContainer}>
-                  {opticalStatus === 'connected' ? (
-                    <LiveStreamView key={opticalKey} streamUrl={OPTICAL_URL} onLoadStart={() => renderLoadingView("Connecting to Camera...")} onError={() => setOpticalStatus('error')} />
-                  ) : opticalStatus === 'error' ? (
-                    <View style={styles.errorContainer}>
-                      <MaterialCommunityIcons name="video-off-outline" size={40} color="#d32f2f" style={{ marginBottom: 10 }} />
-                      <Text style={styles.errorText}>Camera Offline</Text>
-                      <Text style={{ fontSize: 12, color: '#999', marginTop: 5 }}>Host not reachable</Text>
-                    </View>
-                  ) : (
-                    renderLoadingView("Reconnecting to Camera...")
-                  )}
-                </View>
-              ) : (
-                <View style={styles.opticalContainer}>
-                  {streamStatus === 'connected' && liveThermalData ? (
-                    <ThermalImage
-                      frameUrl={OPTICAL_URL}
-                      thermalData={liveThermalData}
-                      style={styles.liveImage}
-                      interpolationFactor={1.4}
-                      refreshInterval={0}
-                    />
-                  ) : streamStatus === 'error' ? (
-                    <View style={styles.errorContainer}>
-                      <MaterialCommunityIcons name="video-off-outline" size={40} color="#d32f2f" style={{ marginBottom: 10 }} />
-                      <Text style={styles.errorText}>Thermal Offline</Text>
-                      <Text style={{ fontSize: 12, color: '#999', marginTop: 5 }}>{streamError}</Text>
-                    </View>
-                  ) : (
-                    renderLoadingView("Connecting to Thermal...")
-                  )}
-                </View>
-              )}
-            </View>
-
-            <Text style={styles.penStatusTitle}>Pen Status</Text>
-            <StatusCard title="Temperature" icon={<MaterialCommunityIcons name="thermometer-low" size={25} color="#fff" />} value={readings?.t_avg_c?.toFixed(1) ?? "N/A"} unit="°C" history={tempHistory} />
-            <StatusCard title="Humidity" icon={<MaterialCommunityIcons name="water-outline" size={24} color="#fff" />} value={readings?.humidity_rh?.toFixed(1) ?? "N/A"} unit="%" history={humidityHistory} />
-            <StatusCard title="Ammonia" icon={<MaterialCommunityIcons name="weather-fog" size={16} color="#fff" />} value={readings?.gas_res_ohm ? (readings.gas_res_ohm / 1000).toFixed(1) : "N/A"} unit="kΩ" history={ammoniaHistory} />
-          </>
-        ) : (
-          // --- In your Index() function, inside the diary tab (activeTab === "diary") ---
-          // ...
- <View style={styles.diaryContainer}>
-            {snapshotsError ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>Error loading snapshots</Text>
-                <Text style={styles.errorSubText}>{snapshotsError}</Text>
-                <TouchableOpacity
-                  onPress={refresh}
-                  style={styles.retryButton}
-                >
-                  <Text style={styles.retryButtonText}>Try Again</Text>
-                </TouchableOpacity>
-              </View>
-            ) : snapshots.length === 0 && !snapshotsLoading ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateIcon}>📸</Text>
-                <Text style={styles.emptyStateText}>No snapshots yet</Text>
-                <Text style={styles.emptyStateSubText}>
-                  Snapshots will appear here when available
-                </Text>
+            {viewMode === 'optical' ? (
+              <View style={styles.opticalContainer}>
+                {opticalStatus === 'connected' ? (
+                  <LiveStreamView key={opticalKey} streamUrl={OPTICAL_URL} onLoadStart={() => renderLoadingView("Connecting to Camera...")} onError={() => setOpticalStatus('error')} />
+                ) : opticalStatus === 'error' ? (
+                  <View style={styles.errorContainer}>
+                    <MaterialCommunityIcons name="video-off-outline" size={40} color="#d32f2f" style={{ marginBottom: 10 }} />
+                    <Text style={styles.errorText}>Camera Offline</Text>
+                    <Text style={{ fontSize: 12, color: '#999', marginTop: 5 }}>Host not reachable</Text>
+                  </View>
+                ) : (
+                  renderLoadingView("Reconnecting to Camera...")
+                )}
               </View>
             ) : (
-              <>
-                {snapshots.map((snapshot) => (
-                  <View key={snapshot.id} style={styles.snapshotCard}>
-                    {snapshot.imageUrl && snapshot.thermalUrl ? (
-                      <ThermalImage
-                        frameUrl={snapshot.imageUrl}
-                        thermalUrl={snapshot.thermalUrl}
-                        style={styles.snapshotImage}
-                        refreshInterval={0}
-                      />
-                    ) : (
-                      <View style={styles.snapshotPlaceholder}>
-                        <Text style={styles.placeholderText}>No image available</Text>
-                      </View>
-                    )}
-                    <View style={styles.snapshotInfo}>
-                      <Text style={styles.snapshotDate}>{formatDate(snapshot.ts)}</Text>
-                      {snapshot.reading && (
-                        <View style={styles.readingInfo}>
-                          <View style={{ flexDirection: "row", alignItems: "center" }}>
-                            <MaterialCommunityIcons name="thermometer" size={20} color="#333" />
-                            <Text style={styles.readingText}>
-                              {snapshot.reading.t_avg_c?.toFixed(1) || "N/A"} °C
-                            </Text>
-                          </View>
-                          <View style={{ flexDirection: "row", alignItems: "center" }}>
-                            <MaterialCommunityIcons name="water" size={20} color="#333" />
-                            <Text style={styles.readingText}>
-                              {snapshot.reading.humidity_rh?.toFixed(1) || "N/A"} %
-                            </Text>
-                          </View>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                ))}
-
-                {snapshotsLoading && (
-                  <ActivityIndicator
-                    style={styles.loader}
-                    size="small"
-                    color="#487307"
+              <View style={styles.opticalContainer}>
+                {streamStatus === 'connected' && liveThermalData ? (
+                  <ThermalImage
+                    frameUrl={OPTICAL_URL}
+                    thermalData={liveThermalData}
+                    style={styles.liveImage}
+                    interpolationFactor={1.4}
+                    refreshInterval={0}
                   />
+                ) : streamStatus === 'error' ? (
+                  <View style={styles.errorContainer}>
+                    <MaterialCommunityIcons name="video-off-outline" size={40} color="#d32f2f" style={{ marginBottom: 10 }} />
+                    <Text style={styles.errorText}>Thermal Offline</Text>
+                    <Text style={{ fontSize: 12, color: '#999', marginTop: 5 }}>{streamError}</Text>
+                  </View>
+                ) : (
+                  renderLoadingView("Connecting to Thermal...")
                 )}
-
-                {hasMore && !snapshotsLoading && (
-                  <TouchableOpacity
-                    onPress={loadMore}
-                    style={styles.loadMoreButton}
-                  >
-                    <Text style={styles.loadMoreText}>Load More</Text>
-                  </TouchableOpacity>
-                )}
-
-                {!hasMore && snapshots.length > 0 && (
-                  <Text style={styles.noMoreText}>
-                    No more snapshots to load
-                  </Text>
-                )}
-              </>
+              </View>
             )}
           </View>
-        )}
-      </ScrollView>
+
+          <Text style={styles.penStatusTitle}>Pen Status</Text>
+          <StatusCard title="Temperature" icon={<MaterialCommunityIcons name="thermometer-low" size={25} color="#fff" />} value={readings?.t_avg_c?.toFixed(1) ?? "N/A"} unit="°C" history={tempHistory} />
+          <StatusCard title="Humidity" icon={<MaterialCommunityIcons name="water-outline" size={24} color="#fff" />} value={readings?.humidity_rh?.toFixed(1) ?? "N/A"} unit="%" history={humidityHistory} />
+          <StatusCard title="Ammonia" icon={<MaterialCommunityIcons name="weather-fog" size={16} color="#fff" />} value={readings?.gas_res_ohm ? (readings.gas_res_ohm / 1000).toFixed(1) : "N/A"} unit="kΩ" history={ammoniaHistory} />
+        </ScrollView>
+      ) : (
+        // --- DIARY VIEW (FlatList for Performance) ---
+        <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+          {snapshotsError ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>Error loading snapshots</Text>
+              <Text style={styles.errorSubText}>{snapshotsError}</Text>
+              <TouchableOpacity onPress={refresh} style={styles.retryButton}>
+                <Text style={styles.retryButtonText}>Try Again</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <FlatList
+              data={snapshots}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={renderSnapshotItem}
+              contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+              
+              // --- PERFORMANCE PROPS ---
+              initialNumToRender={3}
+              maxToRenderPerBatch={3}
+              windowSize={5}
+              removeClippedSubviews={true} 
+              
+              refreshControl={
+                <RefreshControl refreshing={snapshotsLoading} onRefresh={refresh} colors={["#487307"]} />
+              }
+              ListEmptyComponent={
+                !snapshotsLoading ? (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateIcon}>📸</Text>
+                    <Text style={styles.emptyStateText}>No snapshots yet</Text>
+                    <Text style={styles.emptyStateSubText}>
+                      Snapshots will appear here when available
+                    </Text>
+                  </View>
+                ) : null
+              }
+              ListFooterComponent={
+                <View style={{ paddingVertical: 20 }}>
+                  {snapshotsLoading ? (
+                    <ActivityIndicator size="small" color="#487307" />
+                  ) : hasMore ? (
+                    <TouchableOpacity onPress={loadMore} style={styles.loadMoreButton}>
+                      <Text style={styles.loadMoreText}>Load More</Text>
+                    </TouchableOpacity>
+                  ) : snapshots.length > 0 ? (
+                    <Text style={styles.noMoreText}>No more snapshots to load</Text>
+                  ) : null}
+                </View>
+              }
+            />
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -437,7 +450,7 @@ const styles = StyleSheet.create({
   readingInfo: { flexDirection: "row", justifyContent: "space-between" },
   readingText: { fontSize: 12, color: "#666" },
   loader: { marginVertical: 16 },
-  loadMoreButton: { backgroundColor: "#487307", padding: 12, borderRadius: 8, alignItems: "center", marginVertical: 16 },
+  loadMoreButton: { backgroundColor: "#487307", padding: 12, borderRadius: 8, alignItems: "center", marginVertical: 16, width: '100%' },
   loadMoreText: { color: "#fff", fontWeight: "600" },
   noMoreText: { textAlign: "center", color: "#666", marginVertical: 16, fontStyle: "italic" },
   emptyState: { alignItems: "center", justifyContent: "center", padding: 40, backgroundColor: "#f9f9f9", borderRadius: 12, marginVertical: 20 },

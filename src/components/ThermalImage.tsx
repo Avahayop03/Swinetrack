@@ -9,7 +9,7 @@ type ThermalPayload = {
   w: number;
   h: number;
   data?: number[];
-  pixelData?: number[];
+  pixelData?: number[]; // Support both naming conventions
   tMin: number;
   tMax: number;
   tAvg: number;
@@ -17,19 +17,21 @@ type ThermalPayload = {
 
 type Props = {
   frameUrl: string;
-  thermalUrl?: string; 
-  thermalData?: ThermalPayload | null;
+  thermalUrl?: string; // URL to fetch JSON data (for snapshots)
+  thermalData?: ThermalPayload | null; // Direct data object (for live feed)
   style?: ViewStyle;
   overlayOpacity?: number;
   refreshInterval?: number;
-  interpolationFactor?: number;
+  interpolationFactor?: number; // Set to 1 for high performance lists
 };
 
+// Normalize value between 0 and 1
 function normalise(v: number, min: number, max: number): number {
   const t = (v - min) / (max - min + 1e-6);
   return Math.min(1, Math.max(0, t));
 }
 
+// Map 0-1 value to RGB color (Blue -> Green -> Red)
 function mapColour(t: number) {
   const r = Math.round(255 * Math.min(1, Math.max(0, 1.7 * t)));
   const g = Math.round(255 * Math.min(1, Math.max(0, t * t)));
@@ -37,6 +39,7 @@ function mapColour(t: number) {
   return `rgb(${r},${g},${b})`;
 }
 
+// Bi-linear interpolation to upscale low-res thermal data
 function interpolateData(data: number[], sourceW: number, sourceH: number, targetW: number, targetH: number): number[] {
   const interpolated = new Array(targetW * targetH);
   const xRatio = (sourceW - 1) / (targetW - 1);
@@ -69,6 +72,7 @@ function interpolateData(data: number[], sourceW: number, sourceH: number, targe
   return interpolated;
 }
 
+// Simple box blur to reduce noise
 function smoothData(data: number[], w: number, h: number): number[] {
   const smoothed = new Array(data.length);
   for (let y = 0; y < h; y++) {
@@ -96,46 +100,37 @@ function smoothData(data: number[], w: number, h: number): number[] {
 
 export function ThermalImage({
   frameUrl,
-  thermalUrl, // Used for Snapshots (fetches JSON)
-  thermalData, // Used for Live View (direct data)
+  thermalUrl,
+  thermalData,
   style,
   overlayOpacity = 0.7, 
   interpolationFactor = 2, 
 }: Props) {
   const [payload, setPayload] = useState<ThermalPayload | null>(null);
 
+  // --- DATA LOADING EFFECT ---
   useEffect(() => {
-    // 1. If direct data is provided (Live View), use it immediately
+    // 1. Priority: Direct Data (Live Stream)
     if (thermalData) {
       setPayload(thermalData);
       return;
     }
 
-    // 2. If no direct data, but a URL is provided (Snapshots), fetch it
+    // 2. Secondary: Fetch from URL (Snapshots)
     if (thermalUrl) {
       let isMounted = true;
-      
       const fetchPayload = async () => {
         try {
-          // Add a cache-busting timestamp just in case, or remove if URLs are unique
           const response = await fetch(thermalUrl);
           if (!response.ok) throw new Error('Failed to load thermal JSON');
-          
           const json = await response.json();
-          
-          if (isMounted) {
-            setPayload(json);
-          }
+          if (isMounted) setPayload(json);
         } catch (err) {
           console.error("Error fetching thermal snapshot data:", err);
         }
       };
-
       fetchPayload();
-
-      return () => {
-        isMounted = false;
-      };
+      return () => { isMounted = false; };
     }
   }, [thermalData, thermalUrl]);
 
@@ -153,24 +148,37 @@ export function ThermalImage({
     let hIdx = -1;
 
     if (Array.isArray(dataArray) && sourceW > 0 && sourceH > 0) {
+      // Apply offset
       const correctedData = dataArray.map(v => v + TEMP_OFFSET);
-      let pass1 = smoothData(correctedData, sourceW, sourceH);
-      let pass2 = smoothData(pass1, sourceW, sourceH);
 
+      // PERFORMANCE OPTIMIZATION: 
+      // If interpolationFactor is 1 (Snapshot List), skip smoothing and interpolation.
       if (interpolationFactor > 1) {
+        // High quality mode (Live view)
+        const pass1 = smoothData(correctedData, sourceW, sourceH);
+        const pass2 = smoothData(pass1, sourceW, sourceH);
+        
         dw = Math.round(sourceW * interpolationFactor);
         dh = Math.round(sourceH * interpolationFactor);
         finalData = interpolateData(pass2, sourceW, sourceH, dw, dh);
       } else {
-        finalData = pass2;
+        // Performance mode (List view)
+        // Use raw data directly
+        finalData = correctedData;
+        dw = sourceW;
+        dh = sourceH;
       }
 
-      const margin = Math.round(3 * interpolationFactor);
+      const margin = Math.round(3 * Math.max(1, interpolationFactor));
+      
+      // Calculate min/max and hotspot
       for (let i = 0; i < finalData.length; i++) {
         const v = finalData[i];
         if (!Number.isFinite(v)) continue;
+        
         if (v < min) min = v;
         if (v > max) {
+          // Check margins to avoid edge noise being the "hottest" spot
           const y = Math.floor(i / dw);
           const x = i % dw;
           if (x > margin && x < dw - margin && y > margin && y < dh - margin) {
@@ -195,20 +203,34 @@ export function ThermalImage({
   // --- MEMOIZED SVG RENDERING ---
   const svgElements = useMemo(() => {
     if (!processedData.length) return null;
+
     const elements = [];
+    // Slight overlap (1.1 instead of 1.0) prevents thin lines between rects
+    const pixelSize = 1.1; 
+
     for (let y = 0; y < displayH; y++) {
       for (let x = 0; x < displayW; x++) {
         const i = y * displayW + x;
         const v = processedData[i];
         const t = normalise(v, tMin, tMax);
+        
+        // Using numeric key (index) is slightly faster for React to reconcile than string templates
         elements.push(
-          <Rect key={`${x}-${y}`} x={x} y={y} width={1.6} height={1.6} fill={mapColour(t)} />
+          <Rect 
+            key={i} 
+            x={x} 
+            y={y} 
+            width={pixelSize} 
+            height={pixelSize} 
+            fill={mapColour(t)} 
+          />
         );
       }
     }
     return elements;
   }, [processedData, displayW, displayH, tMin, tMax]);
 
+  // Crosshair styling
   const strokeBg = 0.3;  
   const strokeFg = 0.15; 
   const gap = 0.6;       
@@ -216,14 +238,14 @@ export function ThermalImage({
 
   return (
     <View style={[styles.container, style]}>
-      {/* Optical Frame (Base Layer) */}
+      {/* 1. Optical Image (Bottom Layer) */}
       <Image 
         source={{ uri: frameUrl }} 
         style={[StyleSheet.absoluteFill, styles.image]} 
         resizeMode="contain" 
       />
       
-      {/* SVG Overlay (Top Layer) - only render if data is processed */}
+      {/* 2. Thermal Overlay (Middle Layer) */}
       {processedData.length > 0 && (
         <Svg 
           style={[StyleSheet.absoluteFill, styles.overlay]} 
@@ -231,14 +253,17 @@ export function ThermalImage({
           preserveAspectRatio="none"
         >
           <G opacity={overlayOpacity}>{svgElements}</G>
+          
+          {/* Hottest Spot Crosshair */}
           {hottestX >= 0 && (
             <G>
-              {/* Crosshairs for hottest spot */}
+              {/* Black outline for contrast */}
               <Line x1={hottestX - (gap + len)} y1={hottestY + 0.5} x2={hottestX - gap} y2={hottestY + 0.5} stroke="black" strokeWidth={strokeBg} strokeLinecap="round" opacity={0.8} />
               <Line x1={hottestX + 1 + gap} y1={hottestY + 0.5} x2={hottestX + 1 + gap + len} y2={hottestY + 0.5} stroke="black" strokeWidth={strokeBg} strokeLinecap="round" opacity={0.8} />
               <Line x1={hottestX + 0.5} y1={hottestY - (gap + len)} x2={hottestX + 0.5} y2={hottestY - gap} stroke="black" strokeWidth={strokeBg} strokeLinecap="round" opacity={0.8} />
               <Line x1={hottestX + 0.5} y1={hottestY + 1 + gap} x2={hottestX + 0.5} y2={hottestY + 1 + gap + len} stroke="black" strokeWidth={strokeBg} strokeLinecap="round" opacity={0.8} />
               
+              {/* White foreground */}
               <Line x1={hottestX - (gap + len)} y1={hottestY + 0.5} x2={hottestX - gap} y2={hottestY + 0.5} stroke="white" strokeWidth={strokeFg} strokeLinecap="round" />
               <Line x1={hottestX + 1 + gap} y1={hottestY + 0.5} x2={hottestX + 1 + gap + len} y2={hottestY + 0.5} stroke="white" strokeWidth={strokeFg} strokeLinecap="round" />
               <Line x1={hottestX + 0.5} y1={hottestY - (gap + len)} x2={hottestX + 0.5} y2={hottestY - gap} stroke="white" strokeWidth={strokeFg} strokeLinecap="round" />
@@ -248,6 +273,7 @@ export function ThermalImage({
         </Svg>
       )}
       
+      {/* 3. Max Temp Label (Top Layer) */}
       {hottestX >= 0 && (
         <Text style={styles.tempLabel}>Max: {tMax.toFixed(1)}°C</Text>
       )}
