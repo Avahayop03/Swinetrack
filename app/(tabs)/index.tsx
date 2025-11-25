@@ -302,70 +302,88 @@ export default function Index() {
             <StatusCard title="Ammonia" icon={<MaterialCommunityIcons name="weather-fog" size={16} color="#fff" />} value={readings?.gas_res_ohm ? (readings.gas_res_ohm / 1000).toFixed(1) : "N/A"} unit="kΩ" history={ammoniaHistory} />
           </>
         ) : (
-          <View style={styles.diaryContainer}>
-            <View style={styles.diaryHeaderRow}>
-              <Text style={styles.diaryTitle}>Latest Snapshots</Text>
-              <TouchableOpacity
-                style={styles.diaryToggleButton}
-                onPress={() => setDiaryViewMode(prev => prev === 'thermal' ? 'optical' : 'thermal')}
-              >
-                <MaterialCommunityIcons
-                  name={diaryViewMode === 'thermal' ? "camera-iris" : "thermometer"}
-                  size={16}
-                  color="#fff"
-                />
-                <Text style={styles.diaryToggleText}>
-                  {diaryViewMode === 'thermal' ? "Show Camera" : "Show Thermal"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
+          // --- In your Index() function, inside the diary tab (activeTab === "diary") ---
+          // ...
+ <View style={styles.diaryContainer}>
             {snapshotsError ? (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>Error loading snapshots</Text>
                 <Text style={styles.errorSubText}>{snapshotsError}</Text>
-                <TouchableOpacity onPress={refresh} style={styles.retryButton}><Text style={styles.retryButtonText}>Try Again</Text></TouchableOpacity>
+                <TouchableOpacity
+                  onPress={refresh}
+                  style={styles.retryButton}
+                >
+                  <Text style={styles.retryButtonText}>Try Again</Text>
+                </TouchableOpacity>
               </View>
             ) : snapshots.length === 0 && !snapshotsLoading ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateIcon}>📸</Text>
                 <Text style={styles.emptyStateText}>No snapshots yet</Text>
-                <Text style={styles.emptyStateSubText}>Snapshots will appear here when available</Text>
+                <Text style={styles.emptyStateSubText}>
+                  Snapshots will appear here when available
+                </Text>
               </View>
             ) : (
               <>
                 {snapshots.map((snapshot) => (
                   <View key={snapshot.id} style={styles.snapshotCard}>
-                    <View style={styles.snapshotImageContainer}>
-                      {diaryViewMode === 'optical' ? (
-                        snapshot.imageUrl ? (
-                          <Image source={{ uri: snapshot.imageUrl }} style={styles.snapshotImage} resizeMode="cover" />
-                        ) : (
-                          <View style={styles.snapshotPlaceholder}><Text style={styles.placeholderText}>No Camera Image</Text></View>
-                        )
-                      ) : (
-                        snapshot.thermalUrl ? (
-                          <ThermalImage frameUrl={snapshot.imageUrl || ""} thermalUrl={snapshot.thermalUrl} style={styles.snapshotImage} refreshInterval={0} />
-                        ) : (
-                          <View style={styles.snapshotPlaceholder}><Text style={styles.placeholderText}>No Thermal Data</Text></View>
-                        )
-                      )}
-                    </View>
-
+                    {snapshot.imageUrl && snapshot.thermalUrl ? (
+                      <ThermalImage
+                        frameUrl={snapshot.imageUrl}
+                        thermalUrl={snapshot.thermalUrl}
+                        style={styles.snapshotImage}
+                        refreshInterval={0}
+                      />
+                    ) : (
+                      <View style={styles.snapshotPlaceholder}>
+                        <Text style={styles.placeholderText}>No image available</Text>
+                      </View>
+                    )}
                     <View style={styles.snapshotInfo}>
                       <Text style={styles.snapshotDate}>{formatDate(snapshot.ts)}</Text>
                       {snapshot.reading && (
                         <View style={styles.readingInfo}>
-                          <View style={{ flexDirection: "row", alignItems: "center" }}><MaterialCommunityIcons name="thermometer" size={20} color="#333" /><Text style={styles.readingText}>Max: {snapshot.reading.t_max_c?.toFixed(1) || "N/A"} °C</Text></View>
-                          <View style={{ flexDirection: "row", alignItems: "center" }}><MaterialCommunityIcons name="water" size={20} color="#333" /><Text style={styles.readingText}>{snapshot.reading.humidity_rh?.toFixed(1) || "N/A"} %</Text></View>
+                          <View style={{ flexDirection: "row", alignItems: "center" }}>
+                            <MaterialCommunityIcons name="thermometer" size={20} color="#333" />
+                            <Text style={styles.readingText}>
+                              {snapshot.reading.t_avg_c?.toFixed(1) || "N/A"} °C
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: "row", alignItems: "center" }}>
+                            <MaterialCommunityIcons name="water" size={20} color="#333" />
+                            <Text style={styles.readingText}>
+                              {snapshot.reading.humidity_rh?.toFixed(1) || "N/A"} %
+                            </Text>
+                          </View>
                         </View>
                       )}
                     </View>
                   </View>
                 ))}
-                {snapshotsLoading && <ActivityIndicator style={styles.loader} size="small" color="#487307" />}
-                {hasMore && !snapshotsLoading && (<TouchableOpacity onPress={loadMore} style={styles.loadMoreButton}><Text style={styles.loadMoreText}>Load More</Text></TouchableOpacity>)}
-                {!hasMore && snapshots.length > 0 && (<Text style={styles.noMoreText}>No more snapshots to load</Text>)}
+
+                {snapshotsLoading && (
+                  <ActivityIndicator
+                    style={styles.loader}
+                    size="small"
+                    color="#487307"
+                  />
+                )}
+
+                {hasMore && !snapshotsLoading && (
+                  <TouchableOpacity
+                    onPress={loadMore}
+                    style={styles.loadMoreButton}
+                  >
+                    <Text style={styles.loadMoreText}>Load More</Text>
+                  </TouchableOpacity>
+                )}
+
+                {!hasMore && snapshots.length > 0 && (
+                  <Text style={styles.noMoreText}>
+                    No more snapshots to load
+                  </Text>
+                )}
               </>
             )}
           </View>
@@ -403,7 +421,7 @@ const styles = StyleSheet.create({
   cardBody: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cardValueWrapper: { width: '20%', minWidth: 100, alignItems: 'flex-start' },
   cardChartWrapper: { width: '80%', alignItems: 'flex-start', paddingLeft: 10 },
-  cardValue: { fontSize: 24, color: "#1FCB4F", fontWeight: "500", backgroundColor: "#FFFFFF", borderWidth: 1.7, borderRadius: 10, borderColor: "#E8E8E8", padding: 7},
+  cardValue: { fontSize: 24, color: "#1FCB4F", fontWeight: "500", backgroundColor: "#FFFFFF", borderWidth: 1.7, borderRadius: 10, borderColor: "#E8E8E8", padding: 7 },
   diaryContainer: { padding: 4 },
   diaryHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingHorizontal: 4 },
   diaryTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },

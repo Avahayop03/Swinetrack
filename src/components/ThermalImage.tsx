@@ -3,7 +3,7 @@ import { Image, StyleSheet, View, Text, ViewStyle, TextStyle } from 'react-nativ
 import Svg, { Rect, Line, G } from 'react-native-svg';
 
 // --- CALIBRATION SETTINGS ---
-const TEMP_OFFSET = -6.0; 
+const TEMP_OFFSET = -6.0;
 
 type ThermalPayload = {
   w: number;
@@ -17,7 +17,7 @@ type ThermalPayload = {
 
 type Props = {
   frameUrl: string;
-  thermalUrl?: string; // Kept for type compatibility, but ignored in SSE mode
+  thermalUrl?: string; 
   thermalData?: ThermalPayload | null;
   style?: ViewStyle;
   overlayOpacity?: number;
@@ -96,19 +96,48 @@ function smoothData(data: number[], w: number, h: number): number[] {
 
 export function ThermalImage({
   frameUrl,
-  thermalData,
+  thermalUrl, // Used for Snapshots (fetches JSON)
+  thermalData, // Used for Live View (direct data)
   style,
   overlayOpacity = 0.7, 
   interpolationFactor = 2, 
 }: Props) {
   const [payload, setPayload] = useState<ThermalPayload | null>(null);
 
-  // --- REVERTED: Simple Effect to update state when Prop changes ---
   useEffect(() => {
+    // 1. If direct data is provided (Live View), use it immediately
     if (thermalData) {
       setPayload(thermalData);
+      return;
     }
-  }, [thermalData]);
+
+    // 2. If no direct data, but a URL is provided (Snapshots), fetch it
+    if (thermalUrl) {
+      let isMounted = true;
+      
+      const fetchPayload = async () => {
+        try {
+          // Add a cache-busting timestamp just in case, or remove if URLs are unique
+          const response = await fetch(thermalUrl);
+          if (!response.ok) throw new Error('Failed to load thermal JSON');
+          
+          const json = await response.json();
+          
+          if (isMounted) {
+            setPayload(json);
+          }
+        } catch (err) {
+          console.error("Error fetching thermal snapshot data:", err);
+        }
+      };
+
+      fetchPayload();
+
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [thermalData, thermalUrl]);
 
   // --- MEMOIZED DATA PROCESSING ---
   const { processedData, displayW, displayH, tMin, tMax, hottestX, hottestY } = useMemo(() => {
@@ -156,8 +185,8 @@ export function ThermalImage({
       processedData: finalData,
       displayW: dw,
       displayH: dh,
-      tMin: min,
-      tMax: max,
+      tMin: min === Infinity ? 0 : min,
+      tMax: max === -Infinity ? 0 : max,
       hottestX: hIdx >= 0 ? hIdx % dw : -1,
       hottestY: hIdx >= 0 ? Math.floor(hIdx / dw) : -1,
     };
@@ -187,17 +216,29 @@ export function ThermalImage({
 
   return (
     <View style={[styles.container, style]}>
-      <Image source={{ uri: frameUrl }} style={[StyleSheet.absoluteFill, styles.image]} resizeMode="contain" />
+      {/* Optical Frame (Base Layer) */}
+      <Image 
+        source={{ uri: frameUrl }} 
+        style={[StyleSheet.absoluteFill, styles.image]} 
+        resizeMode="contain" 
+      />
       
+      {/* SVG Overlay (Top Layer) - only render if data is processed */}
       {processedData.length > 0 && (
-        <Svg style={[StyleSheet.absoluteFill, styles.overlay]} viewBox={`0 0 ${displayW} ${displayH}`} preserveAspectRatio="none">
+        <Svg 
+          style={[StyleSheet.absoluteFill, styles.overlay]} 
+          viewBox={`0 0 ${displayW} ${displayH}`} 
+          preserveAspectRatio="none"
+        >
           <G opacity={overlayOpacity}>{svgElements}</G>
           {hottestX >= 0 && (
             <G>
+              {/* Crosshairs for hottest spot */}
               <Line x1={hottestX - (gap + len)} y1={hottestY + 0.5} x2={hottestX - gap} y2={hottestY + 0.5} stroke="black" strokeWidth={strokeBg} strokeLinecap="round" opacity={0.8} />
               <Line x1={hottestX + 1 + gap} y1={hottestY + 0.5} x2={hottestX + 1 + gap + len} y2={hottestY + 0.5} stroke="black" strokeWidth={strokeBg} strokeLinecap="round" opacity={0.8} />
               <Line x1={hottestX + 0.5} y1={hottestY - (gap + len)} x2={hottestX + 0.5} y2={hottestY - gap} stroke="black" strokeWidth={strokeBg} strokeLinecap="round" opacity={0.8} />
               <Line x1={hottestX + 0.5} y1={hottestY + 1 + gap} x2={hottestX + 0.5} y2={hottestY + 1 + gap + len} stroke="black" strokeWidth={strokeBg} strokeLinecap="round" opacity={0.8} />
+              
               <Line x1={hottestX - (gap + len)} y1={hottestY + 0.5} x2={hottestX - gap} y2={hottestY + 0.5} stroke="white" strokeWidth={strokeFg} strokeLinecap="round" />
               <Line x1={hottestX + 1 + gap} y1={hottestY + 0.5} x2={hottestX + 1 + gap + len} y2={hottestY + 0.5} stroke="white" strokeWidth={strokeFg} strokeLinecap="round" />
               <Line x1={hottestX + 0.5} y1={hottestY - (gap + len)} x2={hottestX + 0.5} y2={hottestY - gap} stroke="white" strokeWidth={strokeFg} strokeLinecap="round" />
@@ -206,6 +247,7 @@ export function ThermalImage({
           )}
         </Svg>
       )}
+      
       {hottestX >= 0 && (
         <Text style={styles.tempLabel}>Max: {tMax.toFixed(1)}°C</Text>
       )}
@@ -214,10 +256,28 @@ export function ThermalImage({
 }
 
 const styles = StyleSheet.create({
-  container: { position: 'relative', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' },
+  container: { 
+    position: 'relative', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    width: '100%', 
+    height: '100%' 
+  },
   image: { width: '100%', height: '100%' },
   overlay: { width: '100%', height: '100%' },
-  tempLabel: { position: 'absolute', color: 'white', fontSize: 12, fontWeight: 'bold', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4, overflow: 'hidden' } as TextStyle,
+  tempLabel: { 
+    position: 'absolute', 
+    color: 'white', 
+    fontSize: 12, 
+    fontWeight: 'bold', 
+    top: 8, 
+    right: 8, 
+    backgroundColor: 'rgba(0,0,0,0.6)', 
+    paddingHorizontal: 6, 
+    paddingVertical: 3, 
+    borderRadius: 4, 
+    overflow: 'hidden' 
+  } as TextStyle,
 });
 
 export default ThermalImage;
