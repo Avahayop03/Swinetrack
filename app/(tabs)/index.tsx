@@ -36,14 +36,12 @@ type LiveStreamProps = {
 // --- HELPER COMPONENTS ---
 
 const LiveStreamView = ({ streamUrl, onLoadStart, onError }: LiveStreamProps) => {
-  // We inject a script to catch specific loading events and send them to the App
   const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
-  /* 1. Ensure body fills the WebView */
   body { 
     margin: 0; 
     padding: 0; 
@@ -55,8 +53,6 @@ const LiveStreamView = ({ streamUrl, onLoadStart, onError }: LiveStreamProps) =>
     align-items: center; 
     overflow: hidden; 
   }
-  
-  /* 2. Force image to cover the screen */
   img { 
     position: absolute;
     top: 0;
@@ -73,19 +69,16 @@ const LiveStreamView = ({ streamUrl, onLoadStart, onError }: LiveStreamProps) =>
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: type, message: msg }));
   }
 </script>
-
 <img 
   src="${streamUrl}" 
   onload="if(this.naturalWidth > 0) { sendLog('SUCCESS', 'Image loaded. Size: ' + this.naturalWidth + 'x' + this.naturalHeight); } else { sendLog('WARN', 'Image loaded but width is 0'); }"
   onerror="sendLog('IMG_ERROR', 'Image failed to load via HTML tag.')"
 />
-
 </body>
 </html>
 `;
 
   return (
-    // FIX: Explicitly set width: '100%' to prevent parent 'alignItems: center' from crushing it
     <View style={{ flex: 1, width: '100%', backgroundColor: '#000' }}>
       <WebView
         originWhitelist={['*']}
@@ -97,25 +90,16 @@ const LiveStreamView = ({ streamUrl, onLoadStart, onError }: LiveStreamProps) =>
         domStorageEnabled={true}
         startInLoadingState={true}
         renderLoading={onLoadStart}
-        
-        // --- CRITICAL FIXES FOR ANDROID VIDEO ---
         androidLayerType="software" 
         opacity={0.99} 
-        
         onMessage={(event) => {
           try {
             const data = JSON.parse(event.nativeEvent.data);
-            console.log(`[WebView Stream] ${data.type}:`, data.message);
             if (data.type === 'IMG_ERROR' && onError) onError();
           } catch (e) {
             if (event.nativeEvent.data === 'ERROR' && onError) onError();
           }
         }}
-
-        onHttpError={(syntheticEvent) => {
-            // Optional: Log HTTP errors
-        }}
-        
         onError={() => onError && onError()}
       />
     </View>
@@ -123,6 +107,8 @@ const LiveStreamView = ({ streamUrl, onLoadStart, onError }: LiveStreamProps) =>
 };
 
 const StatusCard = memo(({ title, icon, value, unit, history }: any) => {
+  const [chartWidth, setChartWidth] = useState(0);
+
   const getColor = () => {
     if (title === "Ammonia") {
       if (value < 5) return "#1FCB4F";
@@ -152,6 +138,10 @@ const StatusCard = memo(({ title, icon, value, unit, history }: any) => {
   const chartData = prepareData(history);
   const displayValue = `${value} ${unit}`;
 
+  // UPDATE: Calculate safe width
+  // Total Width - (paddingLeft: 10 + paddingRight: 20 + Safety Buffer: 20) = 50
+  const safeWidth = chartWidth > 50 ? chartWidth - 50 : 0;
+
   return (
     <View style={styles.statusCard}>
       <View style={styles.cardHeader}>
@@ -167,25 +157,30 @@ const StatusCard = memo(({ title, icon, value, unit, history }: any) => {
           </Text>
         </View>
         {chartData.length > 1 && (
-          <View style={styles.cardChartWrapper}>
-            <View style={{ width: 180, height: "auto", justifyContent: "center", overflow: 'hidden', marginVertical: -2 }}>
-              <LineChart
-                data={chartData}
-                height={40}
-                width={170}
-                color={getLineColor()}
-                thickness={3.5}
-                curved={true}
-                hideRules
-                hideDataPoints
-                hideYAxisText
-                hideAxesAndRules
-                initialSpacing={0}
-                endSpacing={0}
-                adjustToWidth
-                isAnimated
-              />
-            </View>
+          <View 
+            style={styles.cardChartWrapper} 
+            onLayout={(event) => setChartWidth(event.nativeEvent.layout.width)}
+          >
+            {safeWidth > 0 && (
+              <View style={{ width: safeWidth, height: "auto", justifyContent: "center", overflow: 'hidden', marginVertical: -2 }}>
+                <LineChart
+                  data={chartData}
+                  height={40}
+                  width={safeWidth} // Uses the reduced width to create right padding
+                  color={getLineColor()}
+                  thickness={3.5}
+                  curved={true}
+                  hideRules
+                  hideDataPoints
+                  hideYAxisText
+                  hideAxesAndRules
+                  initialSpacing={0}
+                  endSpacing={0}
+                  adjustToWidth
+                  isAnimated
+                />
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -485,7 +480,7 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 18, fontWeight: "600", color: "#737375" },
   cardBody: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cardValueWrapper: { width: '20%', minWidth: 100, alignItems: 'flex-start' },
-  cardChartWrapper: { width: '80%', alignItems: 'flex-start', paddingLeft: 10 },
+  cardChartWrapper: { width: '80%', alignItems: 'flex-start', paddingLeft: 10, paddingRight: 20 },
   cardValue: { fontSize: 24, color: "#1FCB4F", fontWeight: "500", backgroundColor: "#FFFFFF", borderWidth: 1.7, borderRadius: 10, borderColor: "#E8E8E8", padding: 7 },
   diaryContainer: { padding: 4 },
   diaryHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingHorizontal: 4 },
