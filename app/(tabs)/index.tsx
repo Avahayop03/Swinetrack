@@ -33,10 +33,6 @@ type LiveStreamProps = {
   onError?: () => void;
 };
 
-// --- HELPER COMPONENTS ---
-
-// OPTIMIZATION 1: Added React.memo here
-// This prevents the WebView from re-evaluating on every thermal frame
 const LiveStreamView = React.memo(({ streamUrl, onLoadStart, onError }: LiveStreamProps) => {
   const htmlContent = `
 <!DOCTYPE html>
@@ -108,8 +104,6 @@ const LiveStreamView = React.memo(({ streamUrl, onLoadStart, onError }: LiveStre
   );
 });
 
-// OPTIMIZATION 2: Added React.memo here
-// This is critical. Without this, your charts re-render 10x a second, causing massive lag.
 const StatusCard = React.memo(({ title, icon, value, unit, history }: any) => {
   const [chartWidth, setChartWidth] = useState(0);
 
@@ -135,7 +129,6 @@ const StatusCard = React.memo(({ title, icon, value, unit, history }: any) => {
   const prepareData = (arr: number[]) => {
     if (!arr || arr.length === 0) return [];
     
-    // Filter out bad data
     const validData = arr.filter(n => n !== null && n !== undefined && !isNaN(n));
     if (validData.length === 0) return [];
 
@@ -152,7 +145,6 @@ const StatusCard = React.memo(({ title, icon, value, unit, history }: any) => {
   const chartData = prepareData(history);
   const displayValue = `${value} ${unit}`;
   
-  // Calculate width with padding safety (10 paddingLeft + 20 paddingRight + 20 buffer = 50)
   const safeWidth = chartWidth > 50 ? chartWidth - 50 : 0;
 
   return (
@@ -212,14 +204,12 @@ export default function Index() {
   const [opticalStatus, setOpticalStatus] = useState<'connected' | 'error' | 'loading'>('connected');
   const [opticalKey, setOpticalKey] = useState(0);
 
-  // NEW: State for Dynamic Thermal URL
   const [thermalUrl, setThermalUrl] = useState(STREAM_URL);
 
   useKeepAwake();
 
   const deviceId = DEVICE_ID;
 
-  // UPDATED: Use dynamic thermalUrl instead of constant
   const {
     data: liveThermalData,
     status: streamStatus,
@@ -234,20 +224,13 @@ export default function Index() {
   const [humidityHistory, setHumidityHistory] = useState<number[]>([]);
   const [ammoniaHistory, setAmmoniaHistory] = useState<number[]>([]);
 
-  // NEW: Function to handle toggling and forced reconnection
-  // Wrapped in useCallback to ensure stability
   const handleToggleView = useCallback(() => {
     if (viewMode === 'thermal') {
-      // Switching TO Optical
       setViewMode('optical');
       setOpticalStatus('loading');
-      // Incrementing key forces WebView to unmount and remount
       setOpticalKey(prev => prev + 1);
     } else {
-      // Switching TO Thermal
       setViewMode('thermal');
-      // Append timestamp to URL to force SSE hook to disconnect and reconnect
-      // The server usually ignores query params, but the new string triggers useEffect
       setThermalUrl(`${STREAM_URL}?t=${Date.now()}`);
     }
   }, [viewMode]);
@@ -273,15 +256,8 @@ export default function Index() {
         const now = new Date();
         const futureBuffer = new Date(now.getTime() + 24 * 60 * 60 * 1000); 
         const from = new Date(now.getTime() - 24 * 60 * 60 * 1000); 
-
-        // console.log(`[POLL] Fetching readings for ${deviceId}`);
-
         const data = await fetchReadings(deviceId, from.toISOString(), futureBuffer.toISOString(), 50);
-        
-        // console.log(`[POLL] Items fetched: ${data?.length || 0}`);
-
         if (data && data.length > 0) {
-          // 1. Sort Descending (Newest first)
           const sortedNewestFirst = [...data].sort((a: any, b: any) => {
              const timeA = new Date(a.ts || a.created_at).getTime();
              const timeB = new Date(b.ts || b.created_at).getTime();
@@ -291,10 +267,7 @@ export default function Index() {
           const latestReading = sortedNewestFirst[0];
           
           setReadings(latestReading);
-
-          // 2. Sort Ascending (Oldest first) for charts
           const sortedOldestFirst = [...sortedNewestFirst].reverse();
-
           setTempHistory(sortedOldestFirst.map((r) => r.t_avg_c ?? 0));
           setHumidityHistory(sortedOldestFirst.map((r) => r.humidity_rh ?? 0));
           setAmmoniaHistory(sortedOldestFirst.map((r) => (r.gas_res_ohm ?? 0) / 1000));
@@ -320,7 +293,6 @@ export default function Index() {
         timer = setTimeout(() => setOpticalStatus('loading'), 3000);
       } else if (opticalStatus === 'loading') {
         timer = setTimeout(() => {
-          // This timer acts as a visual buffer, key handles the actual reload
           setOpticalStatus('connected');
         }, 1000);
       }
@@ -352,8 +324,8 @@ export default function Index() {
               thermalUrl={snapshot.thermalUrl}
               style={styles.snapshotImage}
               refreshInterval={0}
-              // OPTIMIZATION 3: Lower interpolation for faster rendering
-              interpolationFactor={1.1}
+              // OPTIMIZATION 3: Lower interpolation for faster rendering in the Snapshot Diary
+              interpolationFactor={1.0}
             />
           ) : (
             <View style={styles.snapshotPlaceholder}>
@@ -433,9 +405,7 @@ export default function Index() {
                     frameUrl={OPTICAL_URL}
                     thermalData={liveThermalData}
                     style={styles.liveImage}
-                    // OPTIMIZATION 4: Set to 1.0. 
-                    // Higher values (1.4) look smoother but eat CPU, making data pull feel slow.
-                    interpolationFactor={1.0} 
+                    interpolationFactor={1.1}  //interpolation mian view changed to 1.1 for live view
                     refreshInterval={0}
                   />
                 ) : streamStatus === 'error' ? (
