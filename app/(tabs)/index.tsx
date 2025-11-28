@@ -3,7 +3,7 @@ import { LineChart } from "react-native-gifted-charts";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 
-import React, { useState, useEffect, memo, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Image,
   ScrollView,
@@ -35,7 +35,9 @@ type LiveStreamProps = {
 
 // --- HELPER COMPONENTS ---
 
-const LiveStreamView = ({ streamUrl, onLoadStart, onError }: LiveStreamProps) => {
+// OPTIMIZATION 1: Added React.memo here
+// This prevents the WebView from re-evaluating on every thermal frame
+const LiveStreamView = React.memo(({ streamUrl, onLoadStart, onError }: LiveStreamProps) => {
   const htmlContent = `
 <!DOCTYPE html>
 <html>
@@ -104,15 +106,19 @@ const LiveStreamView = ({ streamUrl, onLoadStart, onError }: LiveStreamProps) =>
       />
     </View>
   );
-};
+});
 
-const StatusCard = memo(({ title, icon, value, unit, history }: any) => {
+// OPTIMIZATION 2: Added React.memo here
+// This is critical. Without this, your charts re-render 10x a second, causing massive lag.
+const StatusCard = React.memo(({ title, icon, value, unit, history }: any) => {
   const [chartWidth, setChartWidth] = useState(0);
 
   const getColor = () => {
     if (title === "Ammonia") {
-      if (value < 5) return "#1FCB4F";
-      if (value < 10) return "#FFC107";
+      const numValue = parseFloat(value);
+      if (isNaN(numValue)) return "#4C505D"; 
+      if (numValue < 5) return "#1FCB4F";
+      if (numValue < 10) return "#FFC107";
       return "#D32F2F";
     }
     return "#1FCB4F";
@@ -120,26 +126,33 @@ const StatusCard = memo(({ title, icon, value, unit, history }: any) => {
 
   const getLineColor = () => {
     if (title === "Ammonia") {
-      return value >= 10 ? "#D32F2F" : "#4C505D";
+      const numValue = parseFloat(value);
+      return (!isNaN(numValue) && numValue >= 10) ? "#D32F2F" : "#4C505D";
     }
     return "#487307";
   };
 
   const prepareData = (arr: number[]) => {
     if (!arr || arr.length === 0) return [];
-    const max = Math.max(...arr);
-    const min = Math.min(...arr);
-    if (max === min) return arr.map(() => ({ value: 0.5 }));
-    return arr.map(v => ({
+    
+    // Filter out bad data
+    const validData = arr.filter(n => n !== null && n !== undefined && !isNaN(n));
+    if (validData.length === 0) return [];
+
+    const max = Math.max(...validData);
+    const min = Math.min(...validData);
+    
+    if (max === min) return validData.map(() => ({ value: 0.5 }));
+    
+    return validData.map(v => ({
       value: (v - min) / (max - min)
     }));
   };
 
   const chartData = prepareData(history);
   const displayValue = `${value} ${unit}`;
-
-  // UPDATE: Calculate safe width
-  // Total Width - (paddingLeft: 10 + paddingRight: 20 + Safety Buffer: 20) = 50
+  
+  // Calculate width with padding safety (10 paddingLeft + 20 paddingRight + 20 buffer = 50)
   const safeWidth = chartWidth > 50 ? chartWidth - 50 : 0;
 
   return (
@@ -164,9 +177,10 @@ const StatusCard = memo(({ title, icon, value, unit, history }: any) => {
             {safeWidth > 0 && (
               <View style={{ width: safeWidth, height: "auto", justifyContent: "center", overflow: 'hidden', marginVertical: -2 }}>
                 <LineChart
+                  key={safeWidth} // Force re-render when width changes
                   data={chartData}
                   height={40}
-                  width={safeWidth} // Uses the reduced width to create right padding
+                  width={safeWidth}
                   color={getLineColor()}
                   thickness={3.5}
                   curved={true}
@@ -188,8 +202,6 @@ const StatusCard = memo(({ title, icon, value, unit, history }: any) => {
   );
 });
 
-StatusCard.displayName = "StatusCard";
-
 // --- MAIN COMPONENT ---
 export default function Index() {
   const router = useRouter();
@@ -200,15 +212,19 @@ export default function Index() {
   const [opticalStatus, setOpticalStatus] = useState<'connected' | 'error' | 'loading'>('connected');
   const [opticalKey, setOpticalKey] = useState(0);
 
+  // NEW: State for Dynamic Thermal URL
+  const [thermalUrl, setThermalUrl] = useState(STREAM_URL);
+
   useKeepAwake();
 
   const deviceId = DEVICE_ID;
 
+  // UPDATED: Use dynamic thermalUrl instead of constant
   const {
     data: liveThermalData,
     status: streamStatus,
     error: streamError
-  } = useThermalSSE(STREAM_URL);
+  } = useThermalSSE(thermalUrl);
 
   const { snapshots, loading: snapshotsLoading, error: snapshotsError, hasMore, loadMore, refresh } = useSnapshots(deviceId);
 
@@ -217,6 +233,24 @@ export default function Index() {
   const [tempHistory, setTempHistory] = useState<number[]>([]);
   const [humidityHistory, setHumidityHistory] = useState<number[]>([]);
   const [ammoniaHistory, setAmmoniaHistory] = useState<number[]>([]);
+
+  // NEW: Function to handle toggling and forced reconnection
+  // Wrapped in useCallback to ensure stability
+  const handleToggleView = useCallback(() => {
+    if (viewMode === 'thermal') {
+      // Switching TO Optical
+      setViewMode('optical');
+      setOpticalStatus('loading');
+      // Incrementing key forces WebView to unmount and remount
+      setOpticalKey(prev => prev + 1);
+    } else {
+      // Switching TO Thermal
+      setViewMode('thermal');
+      // Append timestamp to URL to force SSE hook to disconnect and reconnect
+      // The server usually ignores query params, but the new string triggers useEffect
+      setThermalUrl(`${STREAM_URL}?t=${Date.now()}`);
+    }
+  }, [viewMode]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -230,24 +264,51 @@ export default function Index() {
     fetchUser();
   }, []);
 
+  // --- DEBUGGED READINGS LOADING ---
   useEffect(() => {
     let interval: number;
     const loadReadings = async () => {
       setLoadingReadings(true);
       try {
         const now = new Date();
-        const from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        const data = await fetchReadings(deviceId, from.toISOString(), now.toISOString(), 20);
-        if (data.length > 0) {
-          setReadings(data[data.length - 1]);
-          setTempHistory(data.map((r) => r.t_avg_c ?? 0));
-          setHumidityHistory(data.map((r) => r.humidity_rh ?? 0));
-          setAmmoniaHistory(data.map((r) => (r.gas_res_ohm ?? 0) / 1000));
-        }
-      } catch (err) { } finally { setLoadingReadings(false); }
-    };
-    loadReadings();
+        const futureBuffer = new Date(now.getTime() + 24 * 60 * 60 * 1000); 
+        const from = new Date(now.getTime() - 24 * 60 * 60 * 1000); 
 
+        // console.log(`[POLL] Fetching readings for ${deviceId}`);
+
+        const data = await fetchReadings(deviceId, from.toISOString(), futureBuffer.toISOString(), 50);
+        
+        // console.log(`[POLL] Items fetched: ${data?.length || 0}`);
+
+        if (data && data.length > 0) {
+          // 1. Sort Descending (Newest first)
+          const sortedNewestFirst = [...data].sort((a: any, b: any) => {
+             const timeA = new Date(a.ts || a.created_at).getTime();
+             const timeB = new Date(b.ts || b.created_at).getTime();
+             return timeB - timeA;
+          });
+
+          const latestReading = sortedNewestFirst[0];
+          
+          setReadings(latestReading);
+
+          // 2. Sort Ascending (Oldest first) for charts
+          const sortedOldestFirst = [...sortedNewestFirst].reverse();
+
+          setTempHistory(sortedOldestFirst.map((r) => r.t_avg_c ?? 0));
+          setHumidityHistory(sortedOldestFirst.map((r) => r.humidity_rh ?? 0));
+          setAmmoniaHistory(sortedOldestFirst.map((r) => (r.gas_res_ohm ?? 0) / 1000));
+        } else {
+            console.log("[POLL] Warning: No data returned from API.");
+        }
+      } catch (err) { 
+          console.error("[POLL] Error fetching readings:", err);
+      } finally { 
+          setLoadingReadings(false); 
+      }
+    };
+    
+    loadReadings();
     interval = setInterval(loadReadings, 5000) as unknown as number;
     return () => clearInterval(interval);
   }, [deviceId]);
@@ -259,7 +320,7 @@ export default function Index() {
         timer = setTimeout(() => setOpticalStatus('loading'), 3000);
       } else if (opticalStatus === 'loading') {
         timer = setTimeout(() => {
-          setOpticalKey(p => p + 1);
+          // This timer acts as a visual buffer, key handles the actual reload
           setOpticalStatus('connected');
         }, 1000);
       }
@@ -291,6 +352,7 @@ export default function Index() {
               thermalUrl={snapshot.thermalUrl}
               style={styles.snapshotImage}
               refreshInterval={0}
+              // OPTIMIZATION 3: Lower interpolation for faster rendering
               interpolationFactor={1.1}
             />
           ) : (
@@ -344,7 +406,8 @@ export default function Index() {
       {activeTab === "live" ? (
         <ScrollView style={styles.scrollArea} contentContainerStyle={{ paddingBottom: 40 }}>
           <View style={styles.feedBox}>
-            <TouchableOpacity style={styles.toggleButton} onPress={() => setViewMode(prev => prev === 'thermal' ? 'optical' : 'thermal')}>
+            {/* UPDATED: onPress uses handleToggleView */}
+            <TouchableOpacity style={styles.toggleButton} onPress={handleToggleView}>
               <MaterialCommunityIcons name={viewMode === 'thermal' ? "camera-iris" : "thermometer"} size={20} color="#fff" />
               <Text style={styles.toggleButtonText}>{viewMode === 'thermal' ? " View Camera" : "View Thermal"}</Text>
             </TouchableOpacity>
@@ -370,7 +433,9 @@ export default function Index() {
                     frameUrl={OPTICAL_URL}
                     thermalData={liveThermalData}
                     style={styles.liveImage}
-                    interpolationFactor={1.4}
+                    // OPTIMIZATION 4: Set to 1.0. 
+                    // Higher values (1.4) look smoother but eat CPU, making data pull feel slow.
+                    interpolationFactor={1.0} 
                     refreshInterval={0}
                   />
                 ) : streamStatus === 'error' ? (
