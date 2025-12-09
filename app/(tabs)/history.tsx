@@ -114,7 +114,7 @@ export default function HistoryScreen() {
 
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
-    return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+    return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
   };
 
   const handleExport = () => {
@@ -160,8 +160,8 @@ export default function HistoryScreen() {
       {/* Content */}
       <View style={styles.content}>
         {/* Title Row */}
-        <View style={styles.titleRow}>
-          <TouchableOpacity
+        {/*<View style={styles.titleRow}>
+           {/*<TouchableOpacity
             style={styles.exportButton}
             onPress={handleExport}
             disabled={loading || readings.length === 0}
@@ -173,7 +173,7 @@ export default function HistoryScreen() {
           <View style={styles.centerTitleContainer}>
             <Text style={styles.historyTitle}>History</Text>
           </View>
-        </View>
+        </View>*/}
 
         {/* Table Headers */}
         <View style={styles.tableHeader}>

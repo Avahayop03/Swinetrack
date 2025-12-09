@@ -24,8 +24,8 @@ import { DEVICE_ID } from "@/constants";
 import { fetchReadings, ReadingRow } from "@/features/readings/api";
 import { useKeepAwake } from 'expo-keep-awake';
 
-const STREAM_URL = "http://192.168.1.102:8787/thermal-stream";
-const OPTICAL_URL = "http://192.168.1.103:81/stream";
+const STREAM_URL = "http://192.168.0.102:8787/thermal-stream";
+const OPTICAL_URL = "http://192.168.0.103:81/stream";
 
 type LiveStreamProps = {
   streamUrl: string;
@@ -325,7 +325,7 @@ export default function Index() {
               style={styles.snapshotImage}
               refreshInterval={0}
               // OPTIMIZATION 3: Lower interpolation for faster rendering in the Snapshot Diary
-              interpolationFactor={1.0}
+              interpolationFactor={1.1}
             />
           ) : (
             <View style={styles.snapshotPlaceholder}>

@@ -23,6 +23,8 @@ type AlertRow = {
   message: string;
 };
 
+type FilterType = "all" | "critical" | "warning";
+
 export default function AlertsScreen() {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
@@ -30,6 +32,7 @@ export default function AlertsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedAlert, setExpandedAlert] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
 
   const deviceId = DEVICE_ID;
 
@@ -45,10 +48,8 @@ export default function AlertsScreen() {
   const loadAlerts = async () => {
     try {
       setError(null);
-      console.log("Loading alerts for", deviceId);
       const data = await listAlerts(deviceId, 0, 50);
-      console.log("Loaded alerts", data?.length ?? 0);
-      setAlerts(data);
+      setAlerts(data || []);
     } catch (err) {
       console.error("Error loading alerts:", err);
       setError(err instanceof Error ? err.message : "Failed to load alerts");
@@ -71,78 +72,161 @@ export default function AlertsScreen() {
     setExpandedAlert((prev) => (prev === alertId ? null : alertId));
   };
 
-  const getAlertConfig = (alertType: string, severity: string) => {
+  // --- 1. NEW HELPER: REFORMAT MESSAGE ON THE FRONTEND ---
+  const formatDisplayMessage = (alert: AlertRow) => {
+    const msg = alert.message;
+    const type = (alert.alert_type || "").toLowerCase();
+    const combinedSearch = (msg + type).toLowerCase();
+
+    // LOGIC: Temperature (Extract value and formalize)
+    if (combinedSearch.includes("temp") || combinedSearch.includes("fever")) {
+      // Regex to find a number (e.g., 41.5) in the original string
+      const match = msg.match(/(\d+\.?\d*)/);
+      const val = match ? match[0] : null;
+
+      if (val) {
+        return `Elevated body temperature recorded at ${val}°C. Value exceeds critical threshold of 40.0°C.`;
+      }
+      return "Elevated body temperature detected. Value exceeds critical threshold of 40.0°C.";
+    }
+
+    // LOGIC: Ammonia (Formalize)
+    if (combinedSearch.includes("ammonia") || combinedSearch.includes("gas")) {
+      // If your original message has a value (e.g. 4500), we can extract it too
+      const match = msg.match(/(\d+)/);
+      const val = match ? match[0] : null;
+      if (val) {
+        return `Critical ammonia concentration recorded (${val}Ω). Air quality is below acceptable standards.`;
+      }
+      return "Critical ammonia levels detected. Air quality has dropped below acceptable standards.";
+    }
+
+    // LOGIC: Humidity (Formalize)
+    if (combinedSearch.includes("humid") || combinedSearch.includes("water")) {
+       return "Abnormal humidity levels detected. Exceeds recommended range for pig comfort.";
+    }
+
+    // Fallback: Return original if no match
+    return msg;
+  };
+
+  const getCalculatedSeverity = (alert: AlertRow): "critical" | "warning" => {
+    const type = (alert.alert_type || "").toLowerCase().trim();
+    const msg = (alert.message || "").toLowerCase();
+    const dbSev = (alert.severity || "").toLowerCase().trim();
+    
+    // Priority Logic
+    if (type.includes("ammonia") || msg.includes("ammonia")) return "critical";
+    if (type.includes("temp") || msg.includes("fever") || msg.includes("hot")) return "critical";
+    if (dbSev.includes("critical") || dbSev.includes("high") || dbSev.includes("severe") || dbSev.includes("danger")) return "critical";
+    
+    return "warning";
+  };
+
+  const getFilteredAlerts = () => {
+    if (activeFilter === "all") return alerts;
+    return alerts.filter((a) => {
+      const severity = getCalculatedSeverity(a);
+      return severity === activeFilter;
+    });
+  };
+
+  const getAlertConfig = (alert: AlertRow) => {
+    const searchString = `${alert.alert_type || ""} ${alert.message || ""}`.toLowerCase();
+    const severity = getCalculatedSeverity(alert);
+
     const configs: Record<string, any> = {
       ammonia: {
-        icon: "warning",
-        title: "Ammonia Level Detected!",
+        icon: "flask",
+        title: "Critical Ammonia Level",
         color: "#B91C1C",
-        bgColor: "#FDE7E9",
+        bgColor: "#FEF2F2",
         iconColor: "#fff",
-        iconBg: "red",
+        iconBg: "#EF4444",
       },
       temperature: {
         icon: "thermometer",
-        title: "Temperature Alert!",
-        color: "#B45309",
-        bgColor: "#FEF3C7",
-        iconColor: "#4A4A4A",
-        iconBg: "#FBBF24",
+        title: "High Temperature Detected",
+        color: "#9A3412",
+        bgColor: "#FFF7ED",
+        iconColor: "#fff",
+        iconBg: "#F97316",
       },
       humidity: {
         icon: "water",
-        title: "Humidity Alert!",
-        color: "#0369A1",
-        bgColor: "#E0F2FE",
+        title: "Humidity Issue",
+        color: "#075985",
+        bgColor: "#F0F9FF",
         iconColor: "#fff",
         iconBg: "#0EA5E9",
       },
       feed: {
-        icon: "nutrition",
-        title: "Feed Reminder!",
-        color: "#4A4A4A",
-        bgColor: "#FDF3D3",
-        iconColor: "#4A4A4A",
-        iconBg: "#FBBF24",
+        icon: "restaurant",
+        title: "Feed Reminder",
+        color: "#1F2937",
+        bgColor: "#F9FAFB",
+        iconColor: "#fff",
+        iconBg: "#6B7280",
       },
       default: {
-        icon: "notifications",
-        title: "Alert!",
-        color: "#4A4A4A",
-        bgColor: "#F3F4F6",
-        iconColor: "#4A4A4A",
-        iconBg: "#D1D5DB",
+        icon: "information-circle",
+        title: "System Notification",
+        color: "#166534",
+        bgColor: "#DCFCE7",
+        iconColor: "#fff",
+        iconBg: "#22C55E",
       },
     };
 
-    return configs[alertType] || configs.default;
+    if (searchString.includes("ammonia") || searchString.includes("gas")) return configs.ammonia;
+    if (searchString.includes("temp") || searchString.includes("fever") || searchString.includes("heat")) return configs.temperature;
+    if (searchString.includes("humid") || searchString.includes("water")) return configs.humidity;
+    if (searchString.includes("feed") || searchString.includes("food")) return configs.feed;
+
+    if (severity === "critical") {
+      return {
+        icon: "alert-circle",
+        title: "Critical Alert",
+        color: "#B91C1C",
+        bgColor: "#FEF2F2",
+        iconColor: "#fff",
+        iconBg: "#EF4444",
+      };
+    }
+
+    return configs.default;
   };
 
-  const getInstructions = (alertType: string) => {
-    const instructions: Record<string, string[]> = {
+  const getInstructions = (alert: AlertRow) => {
+    const searchString = `${alert.alert_type || ""} ${alert.message || ""}`.toLowerCase();
+
+    const instructionsMap: Record<string, string[]> = {
       ammonia: [
-        "Inspect the pigpen for waste buildup and clean the area.",
-        "Increase ventilation in the pen (fans/windows).",
-        "Check for leaks or excess moisture causing ammonia.",
+        "Clean the pen and remove manure immediately.",
+        "Wash down the floor to reduce the smell.",
+        "Ensure air can flow freely (remove obstructions).",
       ],
       temperature: [
-        "Check heating/cooling systems in the pigpen.",
-        "Ensure proper insulation and ventilation.",
-        "Monitor pigs for signs of heat/cold stress.",
+        "Bathe or mist the pigs with water to cool them.",
+        "Refill the drinking trough with fresh water.",
+        "Check pigs for loss of appetite or lethargy.",
       ],
       humidity: [
-        "Adjust ventilation to control humidity levels.",
-        "Check for water leaks or condensation issues.",
-        "Ensure proper drainage in the pigpen.",
+        "Scrape standing water off the floor.",
+        "Fix any leaking nipple drinkers or pipes.",
+        "Improve air circulation to dry the pen.",
       ],
       default: [
-        "Please check the situation and take appropriate action.",
-        "Monitor the pigs for any signs of distress.",
-        "Contact support if the issue persists.",
+        "Review the notification details.",
+        "Monitor the system status.",
       ],
     };
 
-    return instructions[alertType] || instructions.default;
+    if (searchString.includes("ammonia")) return instructionsMap.ammonia;
+    if (searchString.includes("temp") || searchString.includes("fever")) return instructionsMap.temperature;
+    if (searchString.includes("humid")) return instructionsMap.humidity;
+
+    return instructionsMap.default;
   };
 
   const formatTime = (isoString: string) => {
@@ -151,148 +235,138 @@ export default function AlertsScreen() {
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
 
+    if (diffMins < 1) return "Just now";
     if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}hr ago`;
-    return `${diffDays}d ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return date.toLocaleDateString();
   };
 
-  const renderAlertCard = (alert: AlertRow) => {
-    const config = getAlertConfig(alert.alert_type, alert.severity);
-    const isExpanded = expandedAlert === alert.id;
-    const instructions = getInstructions(alert.alert_type);
-
+  const renderFilterButton = (label: string, value: FilterType) => {
+    const isActive = activeFilter === value;
     return (
       <TouchableOpacity
-        key={alert.id}
-        style={[styles.card, { backgroundColor: config.bgColor }]}
-        activeOpacity={0.9}
-        onPress={() => toggleExpanded(alert.id)}
+        style={[styles.filterButton, isActive && styles.filterButtonActive]}
+        onPress={() => setActiveFilter(value)}
+        activeOpacity={0.7}
       >
-        <View style={styles.cardHeader}>
-          <View style={styles.row}>
-            <View style={styles.iconWrapper}>
-              <View
-                style={[styles.iconBase, { backgroundColor: config.iconBg }]}
-              >
-                <Ionicons
-                  name={config.icon as any}
-                  size={18}
-                  color={config.iconColor}
-                />
-              </View>
-              {alert.severity === "critical" && (
-                <Animated.View
-                  style={[
-                    styles.badgeOverlay,
-                    {
-                      transform: [{ scale: scaleAnim }],
-                      backgroundColor: "#B91C1C",
-                    },
-                  ]}
-                >
-                  <Text style={styles.badgeText}>!</Text>
-                </Animated.View>
-              )}
-            </View>
-            <Text style={[styles.cardTitle, { color: config.color }]}>
-              {config.title}
-            </Text>
-          </View>
-          <Text style={[styles.timeText, { color: config.color }]}>
-            {formatTime(alert.ts)}
-          </Text>
-        </View>
-
-        <Text style={[styles.message, { color: config.color }]}>
-          {alert.message}
-        </Text>
-
-        {isExpanded && (
-          <View style={styles.instructions}>
-            <Text style={[styles.instructionTitle, { color: config.color }]}>
-              Please take the following actions immediately:
-            </Text>
-            {instructions.map((instruction, index) => (
-              <Text
-                key={index}
-                style={[styles.bullet, { color: config.color }]}
-              >
-                • {instruction}
-              </Text>
-            ))}
-          </View>
-        )}
-
-        <Text style={[styles.seeMoreText, { color: config.color }]}>
-          {isExpanded ? "See less ▲" : "See more ▼"}
+        <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
+          {label}
         </Text>
       </TouchableOpacity>
     );
   };
 
-  const renderContent = () => {
-    if (loading) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#487307" />
-          <Text style={styles.loadingText}>Loading alerts...</Text>
-        </View>
-      );
-    }
+  const renderAlertCard = (alert: AlertRow) => {
+    const config = getAlertConfig(alert);
+    const instructions = getInstructions(alert);
+    const isExpanded = expandedAlert === alert.id;
+    
+    // --- 2. USE THE NEW FORMATTER HERE ---
+    const displayMessage = formatDisplayMessage(alert);
 
-    if (error) {
-      return (
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color="#ff6b6b" />
-          <Text style={styles.errorText}>Error loading alerts</Text>
-          <Text style={styles.errorSubText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={loadAlerts}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
+    return (
+      <TouchableOpacity
+        key={alert.id}
+        style={[styles.card, { backgroundColor: config.bgColor }]}
+        activeOpacity={0.8}
+        onPress={() => toggleExpanded(alert.id)}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.row}>
+            <View style={[styles.iconBase, { backgroundColor: config.iconBg }]}>
+              <Ionicons name={config.icon as any} size={20} color={config.iconColor} />
+            </View>
+            <View style={styles.headerTextContainer}>
+              <Text style={[styles.cardTitle, { color: config.color }]}>
+                {config.title}
+              </Text>
+              <Text style={[styles.timeText, { color: config.color, opacity: 0.8 }]}>
+                {formatTime(alert.ts)}
+              </Text>
+            </View>
+          </View>
         </View>
-      );
-    }
 
-    if (alerts.length === 0) {
-      return (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="checkmark-circle-outline" size={48} color="#ccc" />
-          <Text style={styles.emptyText}>No alerts</Text>
-          <Text style={styles.emptySubText}>All systems are normal</Text>
+        <View style={styles.whiteDivider} />
+
+        {/* Use the formatted message instead of alert.message */}
+        <Text style={[styles.message, { color: config.color }]}>
+          {displayMessage}
+        </Text>
+
+        {isExpanded && (
+          <View style={styles.instructionsContainer}>
+            <View style={[styles.internalDivider, { backgroundColor: config.color, opacity: 0.1 }]} />
+            <Text style={[styles.instructionTitle, { color: config.color }]}>
+              Recommended Actions:
+            </Text>
+            {instructions.map((instruction, index) => (
+              <View key={index} style={styles.instructionRow}>
+                <Ionicons name="checkmark-circle-outline" size={14} color={config.color} style={{ marginTop: 2, opacity: 0.7 }} />
+                <Text style={[styles.bulletText, { color: config.color }]}>
+                  {instruction}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <View style={styles.cardFooter}>
+          <Text style={[styles.seeMoreText, { color: config.color }]}>
+            {isExpanded ? "Hide Details" : "View Details"}
+          </Text>
+          <Ionicons
+            name={isExpanded ? "chevron-up" : "chevron-down"}
+            size={14}
+            color={config.color}
+            style={{ marginLeft: 4, marginTop: 1 }}
+          />
         </View>
-      );
-    }
-
-    return alerts.map(renderAlertCard);
+      </TouchableOpacity>
+    );
   };
+
+  const filteredAlerts = getFilteredAlerts();
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Notifications</Text>
       </View>
 
-      {/* Tabs */}
-      <View style={styles.tabBar}>
-        <Text style={styles.tabTextActive}>General</Text>
+      <View style={styles.filterContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+          {renderFilterButton("All", "all")}
+          {renderFilterButton("Critical", "critical")}
+          {renderFilterButton("Warning", "warning")}
+        </ScrollView>
       </View>
 
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={["#487307"]}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#487307"]} />
         }
       >
-        {renderContent()}
+        {loading ? (
+          <ActivityIndicator size="large" color="#487307" style={{ marginTop: 50 }} />
+        ) : filteredAlerts.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="checkmark-done-circle-outline" size={64} color="#CBD5E1" />
+            <Text style={styles.emptyText}>
+              {activeFilter === 'all' ? "All Caught Up!" : `No ${activeFilter} alerts`}
+            </Text>
+            <Text style={styles.emptySubText}>
+              {activeFilter === 'all'
+                ? "No new alerts at this time."
+                : `You have no ${activeFilter} alerts right now.`}
+            </Text>
+          </View>
+        ) : (
+          filteredAlerts.map(renderAlertCard)
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -301,165 +375,172 @@ export default function AlertsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#F8FAFC",
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
     backgroundColor: "#487307",
-    paddingHorizontal: 16,
-    paddingTop: 100,
-    paddingBottom: 30,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+    zIndex: 10,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 22,
     color: "#fff",
-    fontWeight: "bold",
-    flex: 1,
+    fontWeight: "700",
     textAlign: "center",
   },
-  tabBar: {
-    borderBottomColor: "#ddd",
-    borderBottomWidth: 1,
+  filterContainer: {
+    marginTop: 15,
+    paddingBottom: 5,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    height: 50,
   },
-  tabTextActive: {
-    fontSize: 16,
+  filterScroll: {
+    alignItems: 'center',
+    paddingRight: 20,
+  },
+  filterButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    backgroundColor: "#E2E8F0",
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  filterButtonActive: {
+    backgroundColor: "#487307",
+    borderColor: "#365E05",
+  },
+  filterText: {
+    fontSize: 14,
     fontWeight: "600",
-    color: "#000",
+    color: "#64748B",
+  },
+  filterTextActive: {
+    color: "#FFFFFF",
   },
   content: {
     padding: 16,
-    minHeight: "100%",
+    paddingBottom: 40,
   },
   card: {
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
+    alignItems: "flex-start",
+    marginBottom: 0,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  iconWrapper: {
-    position: "relative",
-    marginRight: 8,
+    flex: 1,
   },
   iconBase: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
+    marginRight: 12,
   },
-  badgeOverlay: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#fff",
-  },
-  badgeText: {
-    fontSize: 10,
-    color: "#fff",
-    fontWeight: "bold",
+  headerTextContainer: {
+    flex: 1,
   },
   cardTitle: {
-    fontWeight: "bold",
-    fontSize: 14,
+    fontWeight: "700",
+    fontSize: 15,
+    marginBottom: 2,
   },
   timeText: {
     fontSize: 12,
-    fontWeight: "bold",
+    fontWeight: "500",
+  },
+  whiteDivider: {
+    height: 1.5,
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    opacity: 0.6,
+    marginTop: 10,
+    marginBottom: 10,
+    borderRadius: 1,
   },
   message: {
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: 14,
+    lineHeight: 20,
+    marginLeft: 48,
+    marginBottom: 4,
+    fontWeight: "400",
   },
-  instructions: {
-    marginTop: 12,
+  internalDivider: {
+    height: 1,
+    width: "100%",
+    marginVertical: 12,
+  },
+  instructionsContainer: {
+    marginTop: 4,
+    marginLeft: 8,
+    marginRight: 8,
   },
   instructionTitle: {
-    fontWeight: "600",
-    fontSize: 12,
+    fontWeight: "700",
+    fontSize: 13,
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  instructionRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
     marginBottom: 6,
   },
-  bullet: {
-    fontSize: 12,
-    marginBottom: 4,
+  bulletText: {
+    fontSize: 13,
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 18,
+  },
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 12,
+    paddingTop: 8,
   },
   seeMoreText: {
-    marginTop: 10,
     fontWeight: "600",
-    fontSize: 13,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 10,
-    color: "#666",
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 18,
-    color: "#ff6b6b",
-    marginTop: 10,
-  },
-  errorSubText: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-    marginTop: 5,
-  },
-  retryButton: {
-    marginTop: 15,
-    backgroundColor: "#487307",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
-  },
-  retryText: {
-    color: "white",
-    fontWeight: "600",
+    fontSize: 12,
   },
   emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    padding: 20,
+    marginTop: 80,
   },
   emptyText: {
     fontSize: 18,
-    color: "#ccc",
-    marginTop: 10,
+    fontWeight: "600",
+    color: "#64748B",
+    marginTop: 16,
   },
   emptySubText: {
     fontSize: 14,
-    color: "#999",
-    textAlign: "center",
-    marginTop: 5,
+    color: "#94A3B8",
+    marginTop: 8,
   },
 });
