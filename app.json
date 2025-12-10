@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "swinetrack",
-    "slug": "swinetrack",
+    "name": "SwineTrack",
+    "slug": "SwineTrack",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/sw.png",
