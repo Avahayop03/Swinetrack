@@ -3,7 +3,7 @@ import { LineChart } from "react-native-gifted-charts";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, memo } from "react";
 import {
   Image,
   ScrollView,
@@ -26,6 +26,8 @@ import { useKeepAwake } from 'expo-keep-awake';
 
 const STREAM_URL = "http://192.168.0.102:8787/thermal-stream";
 const OPTICAL_URL = "http://192.168.0.103:81/stream";
+
+// --- HELPER COMPONENTS ---
 
 type LiveStreamProps = {
   streamUrl: string;
@@ -199,6 +201,82 @@ const StatusCard = React.memo(({ title, icon, value, unit, history }: any) => {
   );
 });
 
+// --- UPDATED SNAPSHOT CARD ---
+const SnapshotCard = memo(({ snapshot }: { snapshot: any }) => {
+  // Default to True (Thermal)
+  const [showThermal, setShowThermal] = useState(true);
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    } catch { return dateString; }
+  };
+
+  return (
+    <View style={styles.snapshotCard}>
+      <View style={styles.snapshotImageContainer}>
+        {snapshot.imageUrl ? (
+          <>
+            {showThermal && snapshot.thermalUrl ? (
+              <ThermalImage
+                frameUrl={""}
+                thermalUrl={snapshot.thermalUrl}
+                style={styles.snapshotImage}
+                refreshInterval={0}
+                interpolationFactor={1.1}
+              />
+            ) : (
+              <Image 
+                source={{ uri: snapshot.imageUrl }} 
+                style={styles.snapshotImage} 
+                resizeMode="cover"
+              />
+            )}
+
+            {/* TOGGLE BUTTON - Floating Icon in Top Left */}
+            <TouchableOpacity 
+              style={styles.cardToggleButton} 
+              onPress={() => setShowThermal(!showThermal)}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons 
+                name="camera-flip-outline" 
+                size={20} 
+                color="#fff" 
+              />
+            </TouchableOpacity>
+          </>
+        ) : (
+          <View style={styles.snapshotPlaceholder}>
+            <Text style={styles.placeholderText}>No image available</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.snapshotInfo}>
+        <Text style={styles.snapshotDate}>{formatDate(snapshot.ts)}</Text>
+        {snapshot.reading && (
+          <View style={styles.readingInfo}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <MaterialCommunityIcons name="thermometer" size={20} color="#333" />
+              <Text style={styles.readingText}>
+                {snapshot.reading.t_avg_c?.toFixed(1) || "N/A"} °C
+              </Text>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <MaterialCommunityIcons name="water" size={20} color="#333" />
+              <Text style={styles.readingText}>
+                {snapshot.reading.humidity_rh?.toFixed(1) || "N/A"} %
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+});
+
 // --- MAIN COMPONENT ---
 export default function Index() {
   const router = useRouter();
@@ -313,13 +391,6 @@ export default function Index() {
     return () => clearTimeout(timer);
   }, [opticalStatus, viewMode]);
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    } catch { return dateString; }
-  };
-
   const renderLoadingView = (text = "Reconnecting...") => (
     <View style={styles.loadingContainer}>
       <ActivityIndicator size="large" color="#487307" />
@@ -328,44 +399,7 @@ export default function Index() {
   );
 
   const renderSnapshotItem: ListRenderItem<any> = useCallback(({ item: snapshot }) => {
-    return (
-      <View style={styles.snapshotCard}>
-        <View style={styles.snapshotImageContainer}>
-          {snapshot.imageUrl && snapshot.thermalUrl ? (
-            <ThermalImage
-              frameUrl={snapshot.imageUrl}
-              thermalUrl={snapshot.thermalUrl}
-              style={styles.snapshotImage}
-              refreshInterval={0}
-              interpolationFactor={1.1}
-            />
-          ) : (
-            <View style={styles.snapshotPlaceholder}>
-              <Text style={styles.placeholderText}>No image available</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.snapshotInfo}>
-          <Text style={styles.snapshotDate}>{formatDate(snapshot.ts)}</Text>
-          {snapshot.reading && (
-            <View style={styles.readingInfo}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <MaterialCommunityIcons name="thermometer" size={20} color="#333" />
-                <Text style={styles.readingText}>
-                  {snapshot.reading.t_avg_c?.toFixed(1) || "N/A"} °C
-                </Text>
-              </View>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <MaterialCommunityIcons name="water" size={20} color="#333" />
-                <Text style={styles.readingText}>
-                  {snapshot.reading.humidity_rh?.toFixed(1) || "N/A"} %
-                </Text>
-              </View>
-            </View>
-          )}
-        </View>
-      </View>
-    );
+    return <SnapshotCard snapshot={snapshot} />;
   }, []);
 
   return (
@@ -534,8 +568,31 @@ const styles = StyleSheet.create({
   diaryToggleButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#487307', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 16, gap: 4 },
   diaryToggleText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   snapshotCard: { backgroundColor: "#fff", borderRadius: 12, marginBottom: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3, overflow: "hidden" },
-  snapshotImageContainer: { width: "100%", height: 200, backgroundColor: '#e6e6e6' },
-  snapshotImage: { width: "100%", height: 200 },
+  
+  snapshotImageContainer: { 
+    width: "100%", 
+    height: 200, 
+    backgroundColor: '#e6e6e6', 
+    position: 'relative', 
+    overflow: 'hidden',
+  },
+  
+  snapshotImage: { 
+    width: "100%", 
+    height: 200, 
+  },
+  
+
+  cardToggleButton: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 8,
+    borderRadius: 20,
+    zIndex: 10,
+  },
+  
   snapshotPlaceholder: { width: "100%", height: 200, backgroundColor: "#e6e6e6", justifyContent: "center", alignItems: "center" },
   placeholderText: { color: "#888", fontSize: 14 },
   snapshotInfo: { padding: 12 },
