@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,63 +8,101 @@ import {
   ScrollView,
   StatusBar,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { supabase } from "@/lib/supabase";
-import Avatar from "../Avatar"; // Adjust the path if needed
+import Avatar from "../Avatar";
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const avatarRef = useRef<any>(null);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (data?.user) {
-        setName(data.user.user_metadata?.full_name || "");
-        setEmail(data.user.email || "");
-        setAvatarUrl(data.user.user_metadata?.avatar_url || null); // Adjust based on your user metadata
+  const getProfile = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        setLoading(false);
+        return;
       }
-    };
-    fetchUser();
+
+      setEmail(user.email || "");
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, username, avatar_url")
+        .eq("id", user.id)
+        .single();
+
+      if (error) {
+        console.log("Error fetching profile:", error.message);
+      }
+
+      if (data) {
+        setName(data.full_name || data.username || "User");
+        setUsername(data.username || "");
+        setAvatarUrl(data.avatar_url);
+      }
+    } catch (error) {
+      console.log("Error in getProfile:", error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false); 
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      getProfile();
+    }, [])
+  );
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    getProfile();
   }, []);
 
-  // Handle avatar upload
   const handleAvatarUpload = async (filePath: string) => {
     setAvatarUrl(filePath);
-    // Optionally, update the user's avatar_url in your backend here
-    // await supabase.auth.updateUser({ data: { avatar_url: filePath } });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("profiles").update({ avatar_url: filePath }).eq("id", user.id);
+    }
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      "Log Out",
-      "Are you sure you want to log out?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
+    Alert.alert("Log Out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Yes",
+        style: "destructive",
+        onPress: async () => {
+          await supabase.auth.signOut();
+          router.replace("/(auth)/login");
         },
-        {
-          text: "Yes",
-          onPress: () => router.push("/(auth)/login"),
-          style: "destructive",
-        },
-      ],
-      { cancelable: true }
-    );
+      },
+    ]);
   };
 
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar barStyle="light-content" />
 
-      <ScrollView contentContainerStyle={styles.container}>
-        {/* Profile Section */}
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />
+        }
+      >
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
             <Avatar
@@ -80,11 +118,16 @@ export default function ProfileScreen() {
               <Feather name="edit" size={16} color="#fff" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.name}>{name}</Text>
+
+          <Text style={styles.name}>{loading ? "Loading..." : name}</Text>
+          
           <Text style={styles.email}>{email}</Text>
+          
+          {username && username !== name && (
+            <Text style={styles.username}>@{username}</Text>
+          )}
         </View>
 
-        {/* Settings Options */}
         <View style={styles.options}>
           <TouchableOpacity
             style={styles.option}
@@ -128,19 +171,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#487307",
     padding: 50,
     alignItems: "center",
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
     marginBottom: 20,
-    paddingTop: 50,
+    paddingTop: 80,
   },
   avatarContainer: {
     position: "relative",
     marginBottom: 10,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
   },
   editIcon: {
     position: "absolute",
@@ -152,12 +190,19 @@ const styles = StyleSheet.create({
   },
   name: {
     fontWeight: "bold",
-    fontSize: 18,
+    fontSize: 22,
     color: "white",
+    marginTop: 10,
+  },
+  username: {
+    fontSize: 14,
+    color: "#e1e1e1",
+    marginBottom: 2,
   },
   email: {
     color: "white",
     fontSize: 14,
+    opacity: 0.8,
   },
   options: {
     marginTop: 20,

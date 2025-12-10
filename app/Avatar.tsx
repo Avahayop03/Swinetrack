@@ -5,7 +5,7 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { Alert, Button, Image, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, StyleSheet, Text, View } from "react-native";
 import { supabase } from "@/lib/supabase";
 import { Feather } from "@expo/vector-icons";
 
@@ -24,7 +24,11 @@ const Avatar = forwardRef(function Avatar(
   const avatarSize = { height: size, width: size };
 
   useEffect(() => {
-    if (url) downloadImage(url);
+    if (url) {
+      downloadImage(url);
+    } else {
+      setAvatarUrl(null);
+    }
   }, [url]);
 
   async function downloadImage(path: string) {
@@ -33,9 +37,7 @@ const Avatar = forwardRef(function Avatar(
         .from("avatars")
         .download(path);
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       const fr = new FileReader();
       fr.readAsDataURL(data);
@@ -54,11 +56,13 @@ const Avatar = forwardRef(function Avatar(
       setUploading(true);
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images, // Restrict to only images
-        allowsMultipleSelection: false, // Can only select one image
-        allowsEditing: true, // Allows the user to crop / rotate their photo before uploading it
-        quality: 1,
-        exif: false, // We don't want nor need that data.
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: false,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+        base64: false,
+        exif: false,
       });
 
       if (result.canceled || !result.assets || result.assets.length === 0) {
@@ -67,22 +71,29 @@ const Avatar = forwardRef(function Avatar(
       }
 
       const image = result.assets[0];
-      console.log("Got image", image);
+      if (image.fileSize && image.fileSize > 2 * 1024 * 1024) {
+        Alert.alert("File too large", "Please choose an image smaller than 2MB.");
+        return;
+      }
+
+      console.log("Image size:", image.fileSize, "bytes"); 
 
       if (!image.uri) {
-        throw new Error("No image uri!"); // Realistically, this should never happen, but just in case...
+        throw new Error("No image uri!");
       }
 
       const arraybuffer = await fetch(image.uri).then((res) =>
         res.arrayBuffer()
       );
 
-      const fileExt = image.uri?.split(".").pop()?.toLowerCase() ?? "jpeg";
+      const fileExt = "jpeg"; 
       const path = `${Date.now()}.${fileExt}`;
+      
       const { data, error: uploadError } = await supabase.storage
         .from("avatars")
         .upload(path, arraybuffer, {
-          contentType: image.mimeType ?? "image/jpeg",
+          contentType: "image/jpeg",
+          upsert: true,
         });
 
       if (uploadError) {
@@ -115,8 +126,8 @@ const Avatar = forwardRef(function Avatar(
             avatarSize,
             styles.avatar,
             {
-              borderRadius: size / 2, // Ensures the image is always a circle
-              resizeMode: "cover", // Ensures the image covers the area
+              borderRadius: size / 2,
+              resizeMode: "cover",
             },
           ]}
         />
@@ -133,11 +144,7 @@ const Avatar = forwardRef(function Avatar(
             },
           ]}
         >
-          <Text
-            style={{ color: "#fff", fontSize: size / 2, fontWeight: "bold" }}
-          >
-            <Feather name="user" size={size / 2} color="#fff" />
-          </Text>
+          <Feather name="user" size={size / 2} color="#fff" />
         </View>
       )}
     </View>
@@ -148,18 +155,6 @@ const styles = StyleSheet.create({
   avatar: {
     overflow: "hidden",
     maxWidth: "100%",
-  },
-  image: {
-    objectFit: "cover",
-    paddingTop: 0,
-  },
-  noImage: {
-    backgroundColor: "#bbb",
-    borderWidth: 1,
-    borderColor: "rgb(200, 200, 200)",
-    // borderRadius is set inline for circle
-    justifyContent: "center",
-    alignItems: "center",
   },
 });
 

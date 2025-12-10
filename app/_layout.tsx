@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { BackHandler, Text, TextInput } from "react-native";
 import { useFonts } from "expo-font";
 
-// Font loader to apply Poppins globally
 function FontLoader({ children }: { children: React.ReactNode }) {
   const [fontsLoaded] = useFonts({
     "Poppins-Regular": require("../assets/fonts/Poppins-Regular.ttf"),
@@ -46,17 +45,15 @@ function FontLoader({ children }: { children: React.ReactNode }) {
   }, [fontsLoaded]);
 
   if (!fontsLoaded) {
-    return null; // Or return a loading screen component
+    return null;
   }
 
   return <>{children}</>;
 }
 
-//BASTA MAO NING MAG LOGIN KA NGA SCREEN PARA DI SYA MA DIRECT AGAD SA UBAN MGA NAV PAGES
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const isAuth = true; // Set to true when user is logged in
-
+  const isAuth = true;
   useEffect(() => {
     if (!isAuth) {
       router.replace("/auth");
@@ -66,9 +63,7 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
   useFocusEffect(() => {
     if (isAuth) {
       const onBackPress = () => {
-        // Prevent back navigation when on dashboard
-        // You can add more checks if needed for specific routes
-        return true; // Block back action
+        return true;
       };
       const subscription = BackHandler.addEventListener(
         "hardwareBackPress",

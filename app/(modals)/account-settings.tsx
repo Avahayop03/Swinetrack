@@ -17,54 +17,87 @@ export default function AccountSettingsScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (data?.user) {
-        setName(data.user.user_metadata?.full_name || "");
-        setEmail(data.user.email || "");
-      }
-    };
     fetchUser();
   }, []);
 
+  const fetchUser = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return;
+
+      setEmail(user.email || "");
+
+      // FIX 1: Fetch from 'profiles' table to ensure we edit the correct data source
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
+
+      if (data) {
+        setName(data.full_name || "");
+      } else {
+        // Fallback if profile is empty, try metadata
+        setName(user.user_metadata?.full_name || "");
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   const handleSave = async () => {
-    let errorMsg = "";
-    // Update name in Supabase
-    const { error: nameError } = await supabase.auth.updateUser({
-      data: { full_name: name },
-    });
-    if (nameError) errorMsg += nameError.message + "\n";
+    if (loading) return;
+    setLoading(true);
 
-    // Update password in Supabase if provided
-    if (password) {
-      const { error: passError } = await supabase.auth.updateUser({
-        password,
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
+      // FIX 2: Update the 'profiles' table (This is what your Profile Screen reads)
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .upsert({
+          id: user.id,
+          full_name: name,
+          updated_at: new Date(),
+        });
+
+      if (profileError) throw profileError;
+
+      // FIX 3: Also update Supabase Auth Metadata (keeps everything in sync)
+      const { error: authError } = await supabase.auth.updateUser({
+        data: { full_name: name },
       });
-      if (passError) errorMsg += passError.message + "\n";
-    }
 
-    if (errorMsg) {
-      Alert.alert("Update Failed", errorMsg.trim());
-      return;
-    }
+      if (authError) throw authError;
 
-    // Refetch user data from Supabase to update local state/UI
-    const { data } = await supabase.auth.getUser();
-    if (data?.user) {
-      setName(data.user.user_metadata?.full_name || "");
-      setEmail(data.user.email || "");
-    }
-    setPassword(""); // Clear password field
+      // FIX 4: Update Password only if the user typed something
+      if (password && password.length > 0) {
+        const { error: passError } = await supabase.auth.updateUser({
+          password: password,
+        });
+        if (passError) throw passError;
+      }
 
-    Alert.alert("Changes Saved", "Your account settings have been updated.", [
-      {
-        text: "OK",
-        onPress: () => router.back(),
-      },
-    ]);
+      Alert.alert("Success", "Account settings updated!", [
+        {
+          text: "OK",
+          onPress: () => router.back(),
+        },
+      ]);
+    } catch (error) {
+      if (error instanceof Error) {
+        Alert.alert("Update Failed", error.message);
+      }
+    } finally {
+      setLoading(false);
+      setPassword(""); // Clear password field for security
+    }
   };
 
   return (
@@ -74,7 +107,7 @@ export default function AccountSettingsScreen() {
         <Text style={styles.title}>Edit Account</Text>
 
         {/* Display current user info */}
-        <Text style={styles.name}>{name}</Text>
+        <Text style={styles.name}>{name || "No Name"}</Text>
         <Text style={styles.email}>{email}</Text>
 
         <View style={styles.inputGroup}>
@@ -91,11 +124,9 @@ export default function AccountSettingsScreen() {
           <Text style={styles.label}>Email</Text>
           <TextInput
             value={email}
-            style={[styles.input, { backgroundColor: "#eee", color: "#888" }]} // visually disabled            editable={false}
+            style={[styles.input, { backgroundColor: "#eee", color: "#888" }]} 
+            editable={false}
             selectTextOnFocus={false}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            placeholder="Enter your email"
           />
         </View>
 
@@ -108,10 +139,17 @@ export default function AccountSettingsScreen() {
             secureTextEntry
             placeholder="••••••••"
           />
+          <Text style={styles.hint}>Leave blank if you don't want to change it.</Text>
         </View>
 
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>Save Changes</Text>
+        <TouchableOpacity 
+          style={[styles.saveButton, loading && { opacity: 0.7 }]} 
+          onPress={handleSave}
+          disabled={loading}
+        >
+          <Text style={styles.saveButtonText}>
+            {loading ? "Saving..." : "Save Changes"}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -151,6 +189,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#555",
     marginBottom: 5,
+  },
+  hint: {
+    fontSize: 12,
+    color: "#888",
+    marginTop: 5,
   },
   input: {
     backgroundColor: "#fff",
