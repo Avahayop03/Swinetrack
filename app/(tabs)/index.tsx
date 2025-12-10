@@ -145,7 +145,7 @@ const StatusCard = React.memo(({ title, icon, value, unit, history }: any) => {
   const chartData = prepareData(history);
   const displayValue = `${value} ${unit}`;
   
-  const safeWidth = chartWidth > 50 ? chartWidth - 50 : 0;
+  const safeWidth = chartWidth > 25 ? chartWidth - 25 : 0;
 
   return (
     <View style={styles.statusCard}>
@@ -169,7 +169,7 @@ const StatusCard = React.memo(({ title, icon, value, unit, history }: any) => {
             {safeWidth > 0 && (
               <View style={{ width: safeWidth, height: "auto", justifyContent: "center", overflow: 'hidden', marginVertical: -2 }}>
                 <LineChart
-                  key={safeWidth} // Force re-render when width changes
+                  key={safeWidth} 
                   data={chartData}
                   height={40}
                   width={safeWidth}
@@ -184,6 +184,11 @@ const StatusCard = React.memo(({ title, icon, value, unit, history }: any) => {
                   endSpacing={0}
                   adjustToWidth
                   isAnimated
+                  areaChart={true}
+                  startFillColor={'#D3D3D3'}
+                  startOpacity={0.5}
+                  endFillColor={'#D3D3D3'}
+                  endOpacity={0.0}
                 />
               </View>
             )}
@@ -247,7 +252,6 @@ export default function Index() {
     fetchUser();
   }, []);
 
-  // --- DEBUGGED READINGS LOADING ---
   useEffect(() => {
     let interval: number;
     const loadReadings = async () => {
@@ -255,8 +259,9 @@ export default function Index() {
       try {
         const now = new Date();
         const futureBuffer = new Date(now.getTime() + 24 * 60 * 60 * 1000); 
-        const from = new Date(now.getTime() - 24 * 60 * 60 * 1000); 
-        const data = await fetchReadings(deviceId, from.toISOString(), futureBuffer.toISOString(), 50);
+        const from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); 
+        const data = await fetchReadings(deviceId, from.toISOString(), futureBuffer.toISOString(), 2000);
+        
         if (data && data.length > 0) {
           const sortedNewestFirst = [...data].sort((a: any, b: any) => {
              const timeA = new Date(a.ts || a.created_at).getTime();
@@ -265,9 +270,17 @@ export default function Index() {
           });
 
           const latestReading = sortedNewestFirst[0];
-          
           setReadings(latestReading);
-          const sortedOldestFirst = [...sortedNewestFirst].reverse();
+
+          const latestTime = new Date(latestReading.ts || (latestReading as any).created_at).getTime();
+          const oneHoursBeforeLast = latestTime - (1.2 * 60 * 60 * 1000); 
+          
+          const chartContextData = sortedNewestFirst.filter((r: any) => {
+             const rTime = new Date(r.ts || r.created_at).getTime();
+             return rTime >= oneHoursBeforeLast;
+          });
+
+          const sortedOldestFirst = [...chartContextData].reverse();
           setTempHistory(sortedOldestFirst.map((r) => r.t_avg_c ?? 0));
           setHumidityHistory(sortedOldestFirst.map((r) => r.humidity_rh ?? 0));
           setAmmoniaHistory(sortedOldestFirst.map((r) => (r.gas_res_ohm ?? 0) / 1000));
@@ -324,7 +337,6 @@ export default function Index() {
               thermalUrl={snapshot.thermalUrl}
               style={styles.snapshotImage}
               refreshInterval={0}
-              // OPTIMIZATION 3: Lower interpolation for faster rendering in the Snapshot Diary
               interpolationFactor={1.1}
             />
           ) : (
@@ -378,7 +390,6 @@ export default function Index() {
       {activeTab === "live" ? (
         <ScrollView style={styles.scrollArea} contentContainerStyle={{ paddingBottom: 40 }}>
           <View style={styles.feedBox}>
-            {/* UPDATED: onPress uses handleToggleView */}
             <TouchableOpacity style={styles.toggleButton} onPress={handleToggleView}>
               <MaterialCommunityIcons name={viewMode === 'thermal' ? "camera-iris" : "thermometer"} size={20} color="#fff" />
               <Text style={styles.toggleButtonText}>{viewMode === 'thermal' ? " View Camera" : "View Thermal"}</Text>
@@ -405,7 +416,7 @@ export default function Index() {
                     frameUrl={OPTICAL_URL}
                     thermalData={liveThermalData}
                     style={styles.liveImage}
-                    interpolationFactor={1.1}  //interpolation mian view changed to 1.1 for live view
+                    interpolationFactor={1.1} 
                     refreshInterval={0}
                   />
                 ) : streamStatus === 'error' ? (
@@ -514,8 +525,8 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
   cardTitle: { fontSize: 18, fontWeight: "600", color: "#737375" },
   cardBody: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  cardValueWrapper: { width: '20%', minWidth: 100, alignItems: 'flex-start' },
-  cardChartWrapper: { width: '80%', alignItems: 'flex-start', paddingLeft: 10, paddingRight: 20 },
+  cardValueWrapper: { minWidth: 85, alignItems: 'flex-start' },
+  cardChartWrapper: { flex: 1, alignItems: 'flex-start', paddingLeft: 10, paddingRight: 10 },
   cardValue: { fontSize: 24, color: "#1FCB4F", fontWeight: "500", backgroundColor: "#FFFFFF", borderWidth: 1.7, borderRadius: 10, borderColor: "#E8E8E8", padding: 7 },
   diaryContainer: { padding: 4 },
   diaryHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingHorizontal: 4 },
