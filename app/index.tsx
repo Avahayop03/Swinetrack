@@ -90,18 +90,12 @@ export default function WelcomePage() {
       </View>
 
       <Animated.View style={[styles.bottomSection, { opacity: bottomOpacity }]}>
-        <TouchableOpacity
-          style={styles.signInButton}
-          onPress={() => router.push("/(auth)/login")}
-        >
-          <Text style={styles.signInText}>Sign In</Text>
-        </TouchableOpacity>
-
+        {/* REPLACED BUTTONS HERE */}
         <TouchableOpacity
           style={styles.createAccountButton}
-          onPress={() => router.push("/(auth)/signup")}
+          onPress={() => router.replace("/(tabs)")}
         >
-          <Text style={styles.createAccountText}>Create account</Text>
+          <Text style={styles.createAccountText}>Go to Dashboard</Text>
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -116,7 +110,7 @@ const styles = StyleSheet.create({
   },
   topContent: {
     alignItems: "center",
-    marginTop: 100,
+    marginTop: 200,
   },
   logo: {
     width: 300,
@@ -126,7 +120,7 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 40,
-    marginBottom: 8,
+    marginBottom: -5,
     textAlign: "center",
     fontFamily: "Poppins-Bold",
   },
@@ -150,8 +144,8 @@ const styles = StyleSheet.create({
     padding: 30,
     paddingBottom: 50,
     paddingTop: 70,
-    borderTopLeftRadius: 80,
-    borderTopRightRadius: 80,
+    borderTopLeftRadius: 50,
+    borderTopRightRadius: 50,
     alignItems: "center",
   },
   signInButton: {

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   TouchableOpacity,
   Dimensions,
@@ -29,10 +28,9 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 const screenWidth = Dimensions.get("window").width;
 const PAGE_SIZE = 10;
 
-// Export Types: Removed 'prev_month'
 type ExportRange = 'today' | 'yesterday' | 'this_month' | 'custom';
 
-export default function HistoryScreen() {
+function HistoryScreenContent() {
   const [userName, setUserName] = useState<string | null>(null);
   const [readings, setReadings] = useState<ReadingRow[]>([]);
   
@@ -130,8 +128,7 @@ export default function HistoryScreen() {
     loadReadings(0, true);
   };
 
-  // --- DATE HELPERS (With Timezone Fix) ---
-  // This manually shifts the UTC time to Local Time numbers so they display correctly
+  // --- DATE HELPERS ---
   const formatDate = (isoString: string) => {
     const date = new Date(isoString);
     const localTime = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
@@ -156,10 +153,7 @@ export default function HistoryScreen() {
     });
   };
 
-  // ==========================================
-  //      EXPORT FUNCTIONALITY
-  // ==========================================
-
+  // --- EXPORT FUNCTIONALITY ---
   const handleExportPress = () => {
     setShowCustomPickerUI(false);
     setCustomStartDate(new Date());
@@ -189,37 +183,28 @@ export default function HistoryScreen() {
       let toDate = new Date();
       let periodText = "";
 
-      // --- DATE LOGIC ---
       if (rangeType === 'today') {
         fromDate.setHours(0, 0, 0, 0);
         periodText = "Today";
-      
       } else if (rangeType === 'yesterday') {
         fromDate.setDate(fromDate.getDate() - 1);
         fromDate.setHours(0, 0, 0, 0);
-        
         toDate = new Date(fromDate);
         toDate.setHours(23, 59, 59, 999);
         periodText = "Yesterday";
-
       } else if (rangeType === 'this_month') {
         fromDate.setDate(1); 
         fromDate.setHours(0, 0, 0, 0);
         const monthName = fromDate.toLocaleString('default', { month: 'long', year: 'numeric' });
         periodText = `This Month (${monthName})`;
-
       } else if (rangeType === 'custom') {
         fromDate = new Date(customStartDate);
         fromDate.setHours(0, 0, 0, 0);
-        
         toDate = new Date(customEndDate);
         toDate.setHours(23, 59, 59, 999); 
         periodText = `${formatDate(fromDate.toISOString())} - ${formatDate(toDate.toISOString())}`;
       }
 
-      console.log(`Fetching ${periodText}: ${fromDate.toISOString()}`);
-
-      // --- FETCH DATA (Limit 15000) ---
       const { data, error } = await supabase
         .from("readings")
         .select("*")
@@ -237,7 +222,6 @@ export default function HistoryScreen() {
         return;
       }
 
-      // --- GENERATE HTML ---
       const tableRows = data.map(item => `
         <tr>
           <td>${formatDate(item.ts)}</td>
@@ -285,7 +269,6 @@ export default function HistoryScreen() {
 
     } catch (err) {
       console.error("Export failed:", err);
-      // More specific error for empty returns (like timeouts)
       const message = err instanceof Error ? err.message : "Request timed out or no data.";
       Alert.alert("Export Failed", message);
     } finally {
@@ -293,7 +276,6 @@ export default function HistoryScreen() {
     }
   };
 
-  // --- RENDER HELPERS ---
   const renderItem = ({ item }: { item: ReadingRow }) => (
     <View style={styles.tableRow}>
       <Text style={styles.cell}>{formatDate(item.ts)}</Text>
@@ -316,7 +298,7 @@ export default function HistoryScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
       {/* --- EXPORT SELECTION MODAL --- */}
@@ -345,8 +327,6 @@ export default function HistoryScreen() {
                 <TouchableOpacity style={styles.modalButton} onPress={() => generatePDF('this_month')}>
                   <Text style={styles.modalButtonText}>This Month</Text>
                 </TouchableOpacity>
-
-                {/* Removed Last Month Button */}
 
                 <TouchableOpacity style={styles.modalButton} onPress={() => setShowCustomPickerUI(true)}>
                   <Text style={styles.modalButtonText}>Custom Range...</Text>
@@ -444,19 +424,23 @@ export default function HistoryScreen() {
         </View>
       )}
 
-      {/* Header */}
+      {/* --- HEADER (MATCHES INDEX.TSX & ALERTS) --- */}
       <View style={styles.header}>
-        <View style={styles.headerTopRow}>
-          <Image source={require("./swinetrack-logo.png")} style={styles.logo} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          {/* LOGO CONTAINER */}
+          <View style={{ width: 60, height: 55 }}>
+              <Image source={require("../../assets/images/swinetrack-logo.png")} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
+          </View>
         </View>
-        <Text style={styles.welcomeText}>Welcome back, {userName ? userName : "User"}!</Text>
+
+        <Text style={styles.welcomeText}>History</Text>
         <Text style={styles.subText}>View your pig&apos;s status history here.</Text>
         <View style={styles.divider} />
       </View>
 
       {/* Title Row */}
       <View style={styles.titleRow}>
-        <Text style={styles.historyTitle}>History</Text>
+        <Text style={styles.historyTitle}>Recent Logs</Text>
         <TouchableOpacity
           style={styles.exportButton}
           onPress={handleExportPress}
@@ -511,12 +495,20 @@ export default function HistoryScreen() {
           onRefresh={handleRefresh}
         />
       )}
-    </SafeAreaView >
+    </View>
+  );
+}
+
+export default function HistoryScreen() {
+  return (
+      <HistoryScreenContent />
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
+  
+  // --- MATCHED HEADER STYLES ---
   header: {
     backgroundColor: "#487307",
     paddingTop: 30,
@@ -526,12 +518,11 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 20,
     marginBottom: 20,
   },
-  headerTopRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "flex-start" },
-  logo: { width: 60, height: 55, resizeMode: "contain", marginLeft: -20, marginTop: 10 },
   welcomeText: { fontSize: 25, fontWeight: "bold", color: "#fff", marginTop: 2, marginLeft: 15 },
   subText: { fontSize: 14, color: "#d8f2c1", marginTop: 4, marginLeft: 15 },
+  divider: { height: 1, backgroundColor: "#fff", marginTop: 12, opacity: 0.5 },
   
-  // --- TITLE ROW STYLE ---
+  // --- CONTENT STYLES ---
   titleRow: { 
     flexDirection: "row", 
     alignItems: "center", 
@@ -549,14 +540,13 @@ const styles = StyleSheet.create({
     borderRadius: 6
   },
   exportText: { marginLeft: 4, color: "#487307", fontWeight: "600", fontSize: 12 },
-  historyTitle: { fontSize: 30, fontWeight: "bold", color: "#000" }, 
+  historyTitle: { fontSize: 20, fontWeight: "bold", color: "#333" }, // Adjusted font size to fit better
 
-  divider: { height: 1, backgroundColor: "#fff", marginTop: 12, opacity: 0.5 },
-  
   tableHeader: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, paddingHorizontal: 4, borderRadius: 4, borderBottomWidth: 2, borderColor: "#eee", marginBottom: 5 },
   tableHeaderText: { fontWeight: "bold", fontSize: 12, width: "20%", textAlign: "center" },
   tableRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 12, paddingHorizontal: 4, borderBottomWidth: 1, borderColor: "#f5f5f5" },
   cell: { width: "20%", fontSize: 12, textAlign: "center", color: "#333" },
+  
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
   loadingText: { marginTop: 10, color: "#666" },
   errorContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
@@ -569,7 +559,7 @@ const styles = StyleSheet.create({
   emptySubText: { fontSize: 14, color: "#999", textAlign: "center", marginTop: 5 },
   footerContainer: { paddingVertical: 20, alignItems: "center", justifyContent: "center" },
 
-  // --- STYLES FOR MODAL ---
+  // --- MODAL STYLES ---
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -601,7 +591,6 @@ const styles = StyleSheet.create({
   cancelButton: { borderBottomWidth: 0, marginTop: 10, backgroundColor: '#f9f9f9', borderRadius: 8 },
   cancelButtonText: { color: 'red', fontWeight: 'bold' },
 
-  // --- STYLES FOR DATE PICKER UI ---
   datePickerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -620,7 +609,6 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
 
-  // --- STYLES FOR LOADING OVERLAY ---
   loadingOverlay: {
     position: 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
@@ -630,5 +618,5 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   loadingBox: { padding: 20, backgroundColor: 'white', borderRadius: 10, elevation: 5, alignItems: 'center' },
-  loadingOverlayText: { marginTop: 10, fontSize: 16, fontWeight: '600', color: '#487307' }
+  loadingOverlayText: { marginTop: 10, fontSize: 16, fontWeight: '600', color: '#487307' },
 });

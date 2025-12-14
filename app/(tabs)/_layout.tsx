@@ -16,7 +16,7 @@ export default function TabsLayout() {
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          fontFamily: "Poppins-Regular", // ✅ you can keep this
+          fontFamily: "Poppins-Regular",
         },
       }}
     >
@@ -50,10 +50,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="user" size={size} color={color} />
-          ),
+          href: null, 
         }}
       />
     </Tabs>

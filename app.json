@@ -1,12 +1,12 @@
 {
   "expo": {
     "name": "SwineTrack",
-    "slug": "SwineTrack",
+    "slug": "swinetrack",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/sw.png",
     "scheme": "swinetrack",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "infoPlist": {
