@@ -25,21 +25,32 @@ import * as Sharing from 'expo-sharing';
 // --- IMPORTS FOR DATE PICKER ---
 import DateTimePicker from '@react-native-community/datetimepicker';
 
+// --- IMPORTS FOR TOUR GUIDE ---
+import {
+  TourGuideProvider,
+  TourGuideZone,
+  TourGuideZoneByPosition,
+  useTourGuideController,
+} from "rn-tourguide";
+
 const screenWidth = Dimensions.get("window").width;
 const PAGE_SIZE = 10;
 
 type ExportRange = 'today' | 'yesterday' | 'this_month' | 'custom';
 
 function HistoryScreenContent() {
+  // --- TOUR GUIDE HOOK ---
+  const { canStart, start, stop, eventEmitter } = useTourGuideController();
+
   const [userName, setUserName] = useState<string | null>(null);
   const [readings, setReadings] = useState<ReadingRow[]>([]);
-  
+   
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+   
   // --- STATE FOR EXPORT MODAL ---
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -53,22 +64,6 @@ function HistoryScreenContent() {
   const deviceId = DEVICE_ID;
   const THEME_COLOR = "#487307";
 
-  // 1. Fetch User Data
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (data?.user) {
-        setUserName(
-          (data.user.user_metadata?.full_name
-            ? data.user.user_metadata.full_name.split(" ")[0]
-            : null) || data.user.email || "User"
-        );
-      }
-    };
-    fetchUser();
-  }, []);
-
-  // 2. Load Readings for the List
   const loadReadings = async (pageNumber: number, shouldRefresh = false) => {
     try {
       if (shouldRefresh) setLoading(true);
@@ -424,13 +419,24 @@ function HistoryScreenContent() {
         </View>
       )}
 
-      {/* --- HEADER (MATCHES INDEX.TSX & ALERTS) --- */}
+      {/* --- HEADER --- */}
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
           {/* LOGO CONTAINER */}
           <View style={{ width: 60, height: 55 }}>
               <Image source={require("../../assets/images/swinetrack-logo.png")} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
           </View>
+
+          {/* ZONE 3: HELP BUTTON (added to right side of header) */}
+          <TourGuideZone
+            zone={3}
+            text="Tap this button anytime to replay this tutorial."
+            borderRadius={20}
+          >
+            <TouchableOpacity onPress={() => start()}>
+              <Ionicons name="information-circle-outline" size={28} color="white" style={{ opacity: 0.9 }} />
+            </TouchableOpacity>
+          </TourGuideZone>
         </View>
 
         <Text style={styles.welcomeText}>History</Text>
@@ -441,73 +447,103 @@ function HistoryScreenContent() {
       {/* Title Row */}
       <View style={styles.titleRow}>
         <Text style={styles.historyTitle}>Recent Logs</Text>
-        <TouchableOpacity
-          style={styles.exportButton}
-          onPress={handleExportPress}
-          disabled={loading || isGeneratingPdf}
+        
+        {/* ZONE 2: EXPORT BUTTON */}
+        <TourGuideZone
+          zone={2}
+          text="Tap here to export your logs to a PDF report."
+          borderRadius={6}
+          style={{ justifyContent: 'center' }} // Needed to ensure wrapper size is correct
         >
-          <Ionicons name="document-outline" size={16} color="#4A7C2F" />
-          <Text style={styles.exportText}>Export</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Table Headers */}
-      <View style={styles.tableHeader}>
-        <Text style={styles.tableHeaderText}>Date</Text>
-        <Text style={styles.tableHeaderText}>Time</Text>
-        <Text style={styles.tableHeaderText}>Temp.</Text>
-        <Text style={styles.tableHeaderText}>Humidity</Text>
-        <Text style={styles.tableHeaderText}>Ammonia</Text>
-      </View>
-
-      {/* LIST */}
-      {loading && page === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#487307" />
-          <Text style={styles.loadingText}>Loading history...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color="#ff6b6b" />
-          <Text style={styles.errorText}>Error loading data</Text>
-          <Text style={styles.errorSubText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => loadReadings(0, true)}>
-            <Text style={styles.retryText}>Retry</Text>
+          <TouchableOpacity
+            style={styles.exportButton}
+            onPress={handleExportPress}
+            disabled={loading || isGeneratingPdf}
+          >
+            <Ionicons name="document-outline" size={16} color="#4A7C2F" />
+            <Text style={styles.exportText}>Export</Text>
           </TouchableOpacity>
+        </TourGuideZone>
+      </View>
+
+      {/* ZONE 1: TABLE HEADERS + LIST CONTAINER */}
+      {/* We wrap the entire content area below the title */}
+      <TourGuideZone
+        zone={1}
+        text="View detailed logs of Temperature, Humidity, and Ammonia levels here. Scroll down for more."
+        borderRadius={4}
+        style={{ flex: 1, marginHorizontal: 10 }}
+      >
+        <View style={{ flex: 1 }}>
+          {/* Table Headers */}
+          <View style={styles.tableHeader}>
+            <Text style={styles.tableHeaderText}>Date</Text>
+            <Text style={styles.tableHeaderText}>Time</Text>
+            <Text style={styles.tableHeaderText}>Temp.</Text>
+            <Text style={styles.tableHeaderText}>Humidity</Text>
+            <Text style={styles.tableHeaderText}>Ammonia</Text>
+          </View>
+
+          {/* LIST */}
+          {loading && page === 0 ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#487307" />
+              <Text style={styles.loadingText}>Loading history...</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={48} color="#ff6b6b" />
+              <Text style={styles.errorText}>Error loading data</Text>
+              <Text style={styles.errorSubText}>{error}</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={() => loadReadings(0, true)}>
+                <Text style={styles.retryText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : readings.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="time-outline" size={48} color="#ccc" />
+              <Text style={styles.emptyText}>No data available</Text>
+              <Text style={styles.emptySubText}>No readings found for the selected period</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={readings}
+              renderItem={renderItem}
+              keyExtractor={(item) => item.id.toString()}
+              contentContainerStyle={{ paddingBottom: 20 }}
+              showsVerticalScrollIndicator={false}
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={renderFooter}
+              refreshing={loading}
+              onRefresh={handleRefresh}
+            />
+          )}
         </View>
-      ) : readings.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="time-outline" size={48} color="#ccc" />
-          <Text style={styles.emptyText}>No data available</Text>
-          <Text style={styles.emptySubText}>No readings found for the selected period</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={readings}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={{ paddingBottom: 20 }}
-          showsVerticalScrollIndicator={false}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={renderFooter}
-          refreshing={loading}
-          onRefresh={handleRefresh}
-        />
-      )}
+      </TourGuideZone>
     </View>
   );
 }
 
+// --- MAIN EXPORT WITH PROVIDER ---
 export default function HistoryScreen() {
   return (
+    <TourGuideProvider
+      androidStatusBarVisible={true}
+      backdropColor="rgba(0, 0, 0, 0.7)"
+      // Optional: Change tooltip styles here
+      borderRadius={10}
+      tooltipStyle={{ borderRadius: 12, paddingTop: 15 }}
+      preventOutsideInteraction={true} 
+    >
       <HistoryScreenContent />
+    </TourGuideProvider>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  
+   
   // --- MATCHED HEADER STYLES ---
   header: {
     backgroundColor: "#487307",
@@ -521,7 +557,7 @@ const styles = StyleSheet.create({
   welcomeText: { fontSize: 25, fontWeight: "bold", color: "#fff", marginTop: 2, marginLeft: 15 },
   subText: { fontSize: 14, color: "#d8f2c1", marginTop: 4, marginLeft: 15 },
   divider: { height: 1, backgroundColor: "#fff", marginTop: 12, opacity: 0.5 },
-  
+   
   // --- CONTENT STYLES ---
   titleRow: { 
     flexDirection: "row", 
@@ -540,13 +576,13 @@ const styles = StyleSheet.create({
     borderRadius: 6
   },
   exportText: { marginLeft: 4, color: "#487307", fontWeight: "600", fontSize: 12 },
-  historyTitle: { fontSize: 20, fontWeight: "bold", color: "#333" }, // Adjusted font size to fit better
+  historyTitle: { fontSize: 20, fontWeight: "bold", color: "#333" },
 
   tableHeader: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, paddingHorizontal: 4, borderRadius: 4, borderBottomWidth: 2, borderColor: "#eee", marginBottom: 5 },
   tableHeaderText: { fontWeight: "bold", fontSize: 12, width: "20%", textAlign: "center" },
   tableRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 12, paddingHorizontal: 4, borderBottomWidth: 1, borderColor: "#f5f5f5" },
   cell: { width: "20%", fontSize: 12, textAlign: "center", color: "#333" },
-  
+   
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
   loadingText: { marginTop: 10, color: "#666" },
   errorContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },

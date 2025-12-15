@@ -10,10 +10,19 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { listAlerts } from "@/features/alerts/api";
 import { DEVICE_ID } from "@/constants";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// --- TOURGUIDE IMPORTS ---
+import {
+  TourGuideProvider,
+  TourGuideZone,
+  useTourGuideController,
+} from "rn-tourguide";
 
 type AlertRow = {
   id: string;
@@ -25,7 +34,11 @@ type AlertRow = {
 
 type FilterType = "all" | "critical" | "warning";
 
-export default function AlertsScreen() {
+// --- MAIN CONTENT COMPONENT ---
+function AlertsScreenContent() {
+  const { start, canStart } = useTourGuideController();
+  const insets = useSafeAreaInsets();
+
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +48,11 @@ export default function AlertsScreen() {
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
 
   const deviceId = DEVICE_ID;
+
+  // Auto-start or start on demand
+  useEffect(() => {
+    // if (canStart) start(); 
+  }, [canStart]); 
 
   useEffect(() => {
     Animated.spring(scaleAnim, {
@@ -184,11 +202,13 @@ export default function AlertsScreen() {
     );
   };
 
-  const renderAlertCard = (alert: AlertRow) => {
+  // --- RENDER ALERT CARD ---
+  const renderAlertCard = (alert: AlertRow, index: number) => {
     const config = getAlertConfig(alert);
     const instructions = getInstructions(alert);
     const isExpanded = expandedAlert === alert.id;
     const displayMessage = formatDisplayMessage(alert);
+    const isFirst = index === 0;
 
     return (
       <TouchableOpacity
@@ -216,8 +236,8 @@ export default function AlertsScreen() {
           <View style={styles.instructionsContainer}>
             <View style={[styles.internalDivider, { backgroundColor: config.color, opacity: 0.1 }]} />
             <Text style={[styles.instructionTitle, { color: config.color }]}>Recommended Actions:</Text>
-            {instructions.map((instruction, index) => (
-              <View key={index} style={styles.instructionRow}>
+            {instructions.map((instruction, idx) => (
+              <View key={idx} style={styles.instructionRow}>
                 <Ionicons name="checkmark-circle-outline" size={14} color={config.color} style={{ marginTop: 2, opacity: 0.7 }} />
                 <Text style={[styles.bulletText, { color: config.color }]}>{instruction}</Text>
               </View>
@@ -226,8 +246,24 @@ export default function AlertsScreen() {
         )}
 
         <View style={styles.cardFooter}>
-          <Text style={[styles.seeMoreText, { color: config.color }]}>{isExpanded ? "Hide Details" : "View Details"}</Text>
-          <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={14} color={config.color} style={{ marginLeft: 4, marginTop: 1 }} />
+          {/* ZONE 3: View Details (Only on first card) */}
+          {isFirst ? (
+            <TourGuideZone
+              zone={3}
+              text="Tap 'View Details' to expand recommended actions."
+            >
+              {/* IMPORTANT: Wrap with View collapsable=false for measurement */}
+              <View style={{ flexDirection: 'row', alignItems: 'center' }} collapsable={false}>
+                <Text style={[styles.seeMoreText, { color: config.color }]}>{isExpanded ? "Hide Details" : "View Details"}</Text>
+                <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={14} color={config.color} style={{ marginLeft: 4, marginTop: 1 }} />
+              </View>
+            </TourGuideZone>
+          ) : (
+            <>
+              <Text style={[styles.seeMoreText, { color: config.color }]}>{isExpanded ? "Hide Details" : "View Details"}</Text>
+              <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={14} color={config.color} style={{ marginLeft: 4, marginTop: 1 }} />
+            </>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -235,16 +271,32 @@ export default function AlertsScreen() {
 
   const filteredAlerts = getFilteredAlerts();
 
+  // Split alerts for Zone 2 Logic (Highlight at least 2)
+  const firstBatch = filteredAlerts.slice(0, 2); // First 2 items
+  const restBatch = filteredAlerts.slice(2);     // The rest
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      {/* --- HEADER (MATCHES INDEX.TSX) --- */}
+      {/* --- HEADER --- */}
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
           <View style={{ width: 60, height: 55 }}>
               <Image source={require("../../assets/images/swinetrack-logo.png")} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
           </View>
+
+          {/* ZONE 4: Help Button */}
+          <TourGuideZone
+            zone={4}
+            text="Tap this button anytime to replay this tutorial."
+            shape="circle"
+          >
+            {/* IMPORTANT: Wrap with View collapsable=false for measurement */}
+            <TouchableOpacity onPress={() => start()} style={{ padding: 5 }}>
+               <Ionicons name="information-circle-outline" size={28} color="#fff" />
+            </TouchableOpacity>
+          </TourGuideZone>
         </View>
 
         <Text style={styles.welcomeText}>Notifications</Text>
@@ -252,19 +304,27 @@ export default function AlertsScreen() {
         <View style={styles.divider} />
       </View>
 
-      {/* --- FILTER BUTTONS --- */}
+      {/* --- ZONE 1: FILTER BUTTONS --- */}
       <View style={styles.filterContainer}>
-        <View style={styles.filterWrapper}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-                {renderFilterButton("All", "all")}
-                {renderFilterButton("Critical", "critical")}
-                {renderFilterButton("Warning", "warning")}
-            </ScrollView>
-        </View>
+        <TourGuideZone
+          zone={1}
+          text="Use these buttons to filter alerts by severity (Critical, Warning, or All)."
+          borderRadius={23}
+          // Remove flex: 1 here to avoid stretching issues if not needed
+        >
+            {/* IMPORTANT: Wrap with View collapsable=false for measurement */}
+            <View style={styles.filterWrapper} collapsable={false}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+                    {renderFilterButton("All", "all")}
+                    {renderFilterButton("Critical", "critical")}
+                    {renderFilterButton("Warning", "warning")}
+                </ScrollView>
+            </View>
+        </TourGuideZone>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#487307"]} />}
       >
         {loading ? (
@@ -278,56 +338,69 @@ export default function AlertsScreen() {
             </Text>
           </View>
         ) : (
-          filteredAlerts.map(renderAlertCard)
+          <>
+            {/* ZONE 2: ALERT CARDS (HIGHLIGHT AT LEAST 2) */}
+            {firstBatch.length > 0 && (
+              <TourGuideZone
+                zone={2}
+                text="These are your recent alerts. Review the severity and time."
+                borderRadius={16}
+              >
+                {/* IMPORTANT: Wrap with View collapsable=false for measurement */}
+                <View collapsable={false}>
+                  {firstBatch.map((alert, index) => renderAlertCard(alert, index))}
+                </View>
+              </TourGuideZone>
+            )}
+
+            {/* RENDER REST OF ALERTS NORMALLY */}
+            {restBatch.map((alert, index) => renderAlertCard(alert, index + 2))}
+          </>
         )}
       </ScrollView>
     </View>
   );
 }
 
+// --- ROOT COMPONENT ---
+export default function AlertsScreen() {
+  return (
+    <TourGuideProvider
+      preventOutsideInteraction
+      backdropColor="rgba(0, 0, 0, 0.7)"
+      tooltipStyle={{ borderRadius: 12, paddingTop: 10 }}
+      
+      // THIS IS THE KEY FIX FOR VERTICAL OFFSET ISSUES:
+      androidStatusBarVisible={true} 
+      
+      labels={{
+        previous: "Back",
+        next: "Next",
+        skip: "Skip",
+        finish: "Done",
+      }}
+    >
+      <AlertsScreenContent />
+    </TourGuideProvider>
+  );
+}
+
 const styles = StyleSheet.create({
-  // Matches Index.tsx container
   container: { flex: 1, backgroundColor: "#fff" },
-
-  // --- HEADER STYLES (MATCHES INDEX.TSX EXACTLY) ---
-  header: { 
-    backgroundColor: "#487307", 
-    paddingTop: 30, 
-    paddingBottom: 30, 
-    paddingHorizontal: 20, 
-    borderBottomLeftRadius: 20, 
-    borderBottomRightRadius: 20 
-  },
-  welcomeText: { 
-    fontSize: 25, 
-    fontWeight: "bold", 
-    color: "#fff", 
-    marginTop: 2, 
-    marginLeft: 15 
-  },
-  subText: { 
-    fontSize: 14, 
-    color: "#d8f2c1", 
-    marginTop: 4, 
-    marginLeft: 15 
-  },
-  divider: { 
-    height: 1, 
-    backgroundColor: "#fff", 
-    marginTop: 12, 
-    opacity: 0.5 
-  },
-
-  // --- FILTERS ---
+  header: { backgroundColor: "#487307", paddingTop: 30, paddingBottom: 30, paddingHorizontal: 20, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
+  welcomeText: { fontSize: 25, fontWeight: "bold", color: "#fff", marginTop: 2, marginLeft: 15 },
+  subText: { fontSize: 14, color: "#d8f2c1", marginTop: 4, marginLeft: 15 },
+  divider: { height: 1, backgroundColor: "#fff", marginTop: 12, opacity: 0.5 },
+  
   filterContainer: { marginTop: 20, paddingBottom: 5, paddingHorizontal: 16, height: 50 },
-  filterWrapper: { flexDirection: 'row' },
+  filterWrapper: { flexDirection: 'row', width: '100%' },
   filterScroll: { alignItems: 'center', paddingRight: 20 },
+  
   filterButton: { paddingVertical: 8, paddingHorizontal: 20, borderRadius: 20, backgroundColor: "#f5f5f5", marginRight: 10, borderWidth: 1, borderColor: "transparent" },
   filterButtonActive: { backgroundColor: "#487307", borderColor: "#365E05" },
   filterText: { fontSize: 14, fontWeight: "600", color: "#64748B" },
   filterTextActive: { color: "#FFFFFF" },
-
-  // --- CONTENT AREA ---
+  
   content: { padding: 16, paddingBottom: 40 },
   card: { borderRadius: 16, padding: 16, marginBottom: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 0 },
