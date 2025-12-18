@@ -39,7 +39,15 @@ export function useThermalSSE(url: string) {
 
     es.addEventListener("thermal", (event) => {
       try {
-        const parsed = JSON.parse(event.data as string);
+        // --- DATA SANITIZATION FIX ---
+        // This regex finds "NaN" or "Infinity" not wrapped in quotes and converts them to 0 
+        // to prevent the JSON Parse error.
+        const rawData = (event.data as string)
+          .replace(/: ?NaN/g, ": 0")
+          .replace(/: ?Infinity/g, ": 0")
+          .replace(/: ?-Infinity/g, ": 0");
+
+        const parsed = JSON.parse(rawData);
         let payload: ThermalPayload | null = null;
 
         // Normalize data structure
@@ -77,6 +85,7 @@ export function useThermalSSE(url: string) {
 
       } catch (e) {
         console.error("❌ JSON Parse Error", e);
+        console.log("Raw payload causing error:", event.data); // Log actual data for debugging
       }
     });
 

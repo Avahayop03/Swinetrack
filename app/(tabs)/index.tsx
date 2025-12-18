@@ -29,8 +29,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // --- RN-TOURGUIDE IMPORTS ---
 import { TourGuideProvider, TourGuideZone, useTourGuideController } from "rn-tourguide";
 
-const STREAM_URL = "http://192.168.0.102:8787/thermal-stream";
-const OPTICAL_URL = "http://192.168.0.103:81/stream";
+const STREAM_URL = "http://192.168.1.102:8787/thermal-stream";
+const OPTICAL_URL = "http://192.168.1.103:81/stream";
 
 // --- HELPER COMPONENTS ---
 
@@ -69,6 +69,20 @@ const LiveStreamView = React.memo(({ streamUrl, onLoadStart, onError }: LiveStre
     );
 });
 
+const downsample = (arr: number[], maxPoints = 30): number[] => {
+    if (!arr || arr.length <= maxPoints) return arr;
+
+    const step = Math.ceil(arr.length / maxPoints);
+    const result: number[] = [];
+
+    for (let i = 0; i < arr.length; i += step) {
+        result.push(arr[i]);
+    }
+
+    return result;
+};
+
+
 const StatusCard = React.memo(({ title, icon, value, unit, history }: any) => {
     const [chartWidth, setChartWidth] = useState(0);
     const getColor = () => { if (title === "Ammonia") { const num = parseFloat(value); if (isNaN(num)) return "#4C505D"; if (num < 5) return "#1FCB4F"; if (num < 10) return "#FFC107"; return "#D32F2F"; } return "#1FCB4F"; };
@@ -89,7 +103,7 @@ const StatusCard = React.memo(({ title, icon, value, unit, history }: any) => {
                     <View style={styles.cardChartWrapper} onLayout={(event) => setChartWidth(event.nativeEvent.layout.width)}>
                         {safeWidth > 0 && (
                             <View style={{ width: safeWidth, height: "auto", justifyContent: "center", overflow: 'hidden', marginVertical: -2 }}>
-                                <LineChart key={safeWidth} data={chartData} height={40} width={safeWidth} color={getLineColor()} thickness={3.5} curved hideRules hideDataPoints hideYAxisText hideAxesAndRules initialSpacing={0} endSpacing={0} adjustToWidth isAnimated areaChart startFillColor={'#D3D3D3'} startOpacity={0.5} endFillColor={'#D3D3D3'} endOpacity={0.0} />
+                                <LineChart key={safeWidth} data={chartData} height={50} width={safeWidth} color={getLineColor()} thickness={3.5} curved hideRules hideDataPoints hideYAxisText hideAxesAndRules initialSpacing={0} endSpacing={0} adjustToWidth isAnimated={false} areaChart={false} startFillColor={'#D3D3D3'} startOpacity={0.5} endFillColor={'#D3D3D3'} endOpacity={0.0} />
                             </View>
                         )}
                     </View>
@@ -185,9 +199,18 @@ function MainScreenContent() {
                     const oneHoursBeforeLast = latestTime - (1.2 * 60 * 60 * 1000);
                     const chartContextData = sortedNewestFirst.filter((r: any) => new Date(r.ts || r.created_at).getTime() >= oneHoursBeforeLast);
                     const sortedOldestFirst = [...chartContextData].reverse();
-                    setTempHistory(sortedOldestFirst.map((r) => r.t_avg_c ?? 0));
-                    setHumidityHistory(sortedOldestFirst.map((r) => r.humidity_rh ?? 0));
-                    setAmmoniaHistory(sortedOldestFirst.map((r) => (r.gas_res_ohm ?? 0) / 1000));
+                    setTempHistory(
+    downsample(sortedOldestFirst.map(r => r.t_avg_c ?? 0), 30)
+);
+
+setHumidityHistory(
+    downsample(sortedOldestFirst.map(r => r.humidity_rh ?? 0), 30)
+);
+
+setAmmoniaHistory(
+    downsample(sortedOldestFirst.map(r => (r.gas_res_ohm ?? 0) / 1000), 30)
+);
+
                 }
             } catch (err) { console.error("[POLL] Error fetching readings:", err); } finally { setLoadingReadings(false); }
         };
@@ -412,7 +435,7 @@ const styles = StyleSheet.create({
     cardTitle: { fontSize: 18, fontWeight: "600", color: "#737375" },
     cardBody: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
     cardValueWrapper: { minWidth: 85, alignItems: 'flex-start' },
-    cardChartWrapper: { flex: 1, alignItems: 'flex-start', paddingLeft: 10, paddingRight: 10 },
+    cardChartWrapper: { flex: 1, alignItems: 'center', paddingLeft: 10, paddingRight: 10 },
     cardValue: { fontSize: 24, color: "#1FCB4F", fontWeight: "500", backgroundColor: "#FFFFFF", borderWidth: 1.7, borderRadius: 10, borderColor: "#E8E8E8", padding: 7 },
     diaryContainer: { padding: 4 },
     diaryHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingHorizontal: 4 },

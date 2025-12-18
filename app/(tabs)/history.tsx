@@ -124,27 +124,25 @@ function HistoryScreenContent() {
   };
 
   // --- DATE HELPERS ---
+  // FIX: Remove manual timezone offset math + remove "timeZone: UTC".
+  // JS Date already parses ISO strings and converts for display. We force PH time explicitly for consistency.
   const formatDate = (isoString: string) => {
     const date = new Date(isoString);
-    const localTime = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
-    
-    return localTime.toLocaleDateString("en-US", { 
+    return date.toLocaleDateString("en-US", { 
       month: "2-digit", 
       day: "2-digit", 
       year: "2-digit",
-      timeZone: "UTC" 
+      timeZone: "Asia/Manila",
     });
   };
 
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
-    const localTime = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
-    
-    return localTime.toLocaleTimeString("en-US", { 
+    return date.toLocaleTimeString("en-US", { 
       hour: "2-digit", 
       minute: "2-digit", 
       hour12: true,
-      timeZone: "UTC"
+      timeZone: "Asia/Manila",
     });
   };
 
@@ -509,8 +507,8 @@ function HistoryScreenContent() {
             <FlatList
               data={readings}
               renderItem={renderItem}
-              keyExtractor={(item) => item.id.toString()}
-              contentContainerStyle={{ paddingBottom: 20 }}
+              keyExtractor={(item, index) => `${item.id}-${index}`}
+             contentContainerStyle={{ paddingBottom: 20 }}
               showsVerticalScrollIndicator={false}
               onEndReached={handleLoadMore}
               onEndReachedThreshold={0.5}
