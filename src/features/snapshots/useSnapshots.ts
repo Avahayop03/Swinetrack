@@ -26,7 +26,7 @@ export function useSnapshots(deviceId: string) {
       }
 
       console.log("Loading snapshots, page:", pageNum);
-      const data = await listSnapshots(deviceId, pageNum, 10);
+      const data = await listSnapshots(deviceId, pageNum, 2000);
 
       console.log("Loaded", data.length, "snapshots");
 

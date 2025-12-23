@@ -3,7 +3,7 @@ import { Image, StyleSheet, View, Text, ViewStyle, TextStyle } from 'react-nativ
 import Svg, { Rect, Line, G } from 'react-native-svg';
 
 // --- CALIBRATION SETTINGS ---
-const TEMP_OFFSET = -5.5;
+const TEMP_OFFSET = 0;
 
 type ThermalPayload = {
   w: number;

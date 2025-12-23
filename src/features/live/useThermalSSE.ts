@@ -31,7 +31,7 @@ export function useThermalSSE(url: string) {
     });
 
     es.addEventListener("open", () => {
-      console.log("✅ SSE Connected");
+      console.log("SSE Connected");
       setStatus('connected');
       setError(null);
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
@@ -84,14 +84,14 @@ export function useThermalSSE(url: string) {
         }
 
       } catch (e) {
-        console.error("❌ JSON Parse Error", e);
+        console.error("JSON Parse Error", e);
         console.log("Raw payload causing error:", event.data); // Log actual data for debugging
       }
     });
 
     es.addEventListener("error", (event) => {
       const msg = (event as any).message || "Connection failed";
-      console.log("⚠️ SSE Connection Lost, retrying in 3s...");
+      console.log("SSE Connection Lost, retrying in 3s...");
       
       setStatus('error');
       setError(msg);

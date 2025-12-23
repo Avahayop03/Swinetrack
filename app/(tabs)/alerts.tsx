@@ -108,7 +108,7 @@ function AlertsScreenContent() {
       const match = msg.match(/(\d+)/);
       const val = match ? match[0] : null;
       if (val) {
-        return `Critical ammonia concentration recorded (${val}Ω). Air quality is below acceptable standards.`;
+        return `Critical ammonia concentration. Air quality is below acceptable standards.`;
       }
       return "Critical ammonia levels detected. Air quality has dropped below acceptable standards.";
     }

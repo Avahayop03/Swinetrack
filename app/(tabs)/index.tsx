@@ -276,32 +276,6 @@ setAmmoniaHistory(
                 <View style={styles.divider} />
             </View>
 
-            {/* ZONE 1: TABS */}
-            <TourGuideZone
-                zone={1}
-                text="Switch between the Live View and the Snapshot Diary here."
-                borderRadius={10}
-                shape="rectangle"  // <--- Add this (Tabs are wide, a circle looks bad or fails)
-            >
-                <View
-                    style={styles.tabs}
-                    collapsable={false} // <--- Add this! Vital for measurement
-                    renderToHardwareTextureAndroid={true} // <--- Optional: helps on some older Androids
-                >
-                    <TouchableOpacity onPress={() => setActiveTab("live")}>
-                        <Text style={[styles.tabText, activeTab === "live" && styles.activeTab]}>
-                            Live Feed
-                        </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity onPress={() => setActiveTab("diary")}>
-                        <Text style={[styles.tabText, activeTab === "diary" && styles.activeTab]}>
-                            Snapshots Diary
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </TourGuideZone>
-
             {activeTab === "live" ? (
                 <ScrollView style={styles.scrollArea} contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}>
 
