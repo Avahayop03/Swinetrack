@@ -20,7 +20,6 @@ export type SnapshotRow = {
   } | null;
 };
 
-// Make sure this function is exported
 export async function listSnapshots(deviceId: string, page = 0, pageSize = 20) {
   try {
     console.log("Fetching snapshots for device:", deviceId);
@@ -44,7 +43,6 @@ export async function listSnapshots(deviceId: string, page = 0, pageSize = 20) {
 
     console.log("Found", data?.length, "snapshots");
 
-    // Get public URLs for each snapshot
     const snapshotsWithUrls = await Promise.all(
       (data ?? []).map(async (row: any) => {
         try {
@@ -86,7 +84,6 @@ export async function listSnapshots(deviceId: string, page = 0, pageSize = 20) {
   }
 }
 
-// Add a simple test function to verify the API is working
 export async function testSnapshotsConnection(deviceId: string) {
   try {
     const { error } = await supabase

@@ -39,11 +39,8 @@ if (
   );
 }
 
-// 3. Initialize the Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // This resolves both the 'ReferenceError: window is not defined' (JS error) 
-    // and the implicit 'any' type error (TS error).
     storage: storageMechanism, 
     autoRefreshToken: true,
     persistSession: true,

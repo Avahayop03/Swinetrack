@@ -18,14 +18,11 @@ import { supabase } from "@/lib/supabase";
 import { fetchReadings, ReadingRow } from "@/features/readings/api";
 import { DEVICE_ID } from "@/constants";
 
-// --- IMPORTS FOR PDF ---
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
-// --- IMPORTS FOR DATE PICKER ---
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-// --- IMPORTS FOR TOUR GUIDE ---
 import {
   TourGuideProvider,
   TourGuideZone,
@@ -39,7 +36,6 @@ const PAGE_SIZE = 10;
 type ExportRange = 'today' | 'yesterday' | 'this_month' | 'custom';
 
 function HistoryScreenContent() {
-  // --- TOUR GUIDE HOOK ---
   const { canStart, start, stop, eventEmitter } = useTourGuideController();
 
   const [userName, setUserName] = useState<string | null>(null);
@@ -51,11 +47,9 @@ function HistoryScreenContent() {
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
    
-  // --- STATE FOR EXPORT MODAL ---
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-  // --- STATE FOR CUSTOM DATE PICKER ---
   const [showCustomPickerUI, setShowCustomPickerUI] = useState(false);
   const [customStartDate, setCustomStartDate] = useState(new Date());
   const [customEndDate, setCustomEndDate] = useState(new Date());
@@ -108,7 +102,6 @@ function HistoryScreenContent() {
     loadReadings(0, true);
   }, [deviceId]);
 
-  // --- REFRESH / PAGINATION HANDLERS ---
   const handleLoadMore = () => {
     if (!loadingMore && !loading && hasMore) {
       const nextPage = page + 1;
@@ -123,9 +116,6 @@ function HistoryScreenContent() {
     loadReadings(0, true);
   };
 
-  // --- DATE HELPERS ---
-  // FIX: Remove manual timezone offset math + remove "timeZone: UTC".
-  // JS Date already parses ISO strings and converts for display. We force PH time explicitly for consistency.
   const formatDate = (isoString: string) => {
     const date = new Date(isoString);
     return date.toLocaleDateString("en-US", { 
@@ -146,7 +136,6 @@ function HistoryScreenContent() {
     });
   };
 
-  // --- EXPORT FUNCTIONALITY ---
   const handleExportPress = () => {
     setShowCustomPickerUI(false);
     setCustomStartDate(new Date());
@@ -294,7 +283,6 @@ function HistoryScreenContent() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* --- EXPORT SELECTION MODAL --- */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -333,7 +321,6 @@ function HistoryScreenContent() {
                 </TouchableOpacity>
               </>
             ) : (
-              // --- CUSTOM DATE SELECTION UI ---
               <>
                 <Text style={styles.modalTitle}>Custom Range</Text>
                 <Text style={styles.modalSubtitle}>Select start and end dates:</Text>
@@ -407,7 +394,6 @@ function HistoryScreenContent() {
         </View>
       </Modal>
 
-      {/* --- GENERATING LOADING OVERLAY --- */}
       {isGeneratingPdf && (
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingBox}>
@@ -417,15 +403,12 @@ function HistoryScreenContent() {
         </View>
       )}
 
-      {/* --- HEADER --- */}
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-          {/* LOGO CONTAINER */}
           <View style={{ width: 60, height: 55 }}>
               <Image source={require("../../assets/images/swinetrack-logo.png")} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
           </View>
 
-          {/* ZONE 3: HELP BUTTON (added to right side of header) */}
           <TourGuideZone
             zone={3}
             text="Tap this button anytime to replay this tutorial."
@@ -442,16 +425,14 @@ function HistoryScreenContent() {
         <View style={styles.divider} />
       </View>
 
-      {/* Title Row */}
       <View style={styles.titleRow}>
         <Text style={styles.historyTitle}>Recent Logs</Text>
         
-        {/* ZONE 2: EXPORT BUTTON */}
         <TourGuideZone
           zone={2}
           text="Tap here to export your logs to a PDF report."
           borderRadius={6}
-          style={{ justifyContent: 'center' }} // Needed to ensure wrapper size is correct
+          style={{ justifyContent: 'center' }}
         >
           <TouchableOpacity
             style={styles.exportButton}
@@ -464,8 +445,7 @@ function HistoryScreenContent() {
         </TourGuideZone>
       </View>
 
-      {/* ZONE 1: TABLE HEADERS + LIST CONTAINER */}
-      {/* We wrap the entire content area below the title */}
+
       <TourGuideZone
         zone={1}
         text="View detailed logs of Temperature, Humidity, and Ammonia levels here. Scroll down for more."
@@ -473,7 +453,6 @@ function HistoryScreenContent() {
         style={{ flex: 1, marginHorizontal: 10 }}
       >
         <View style={{ flex: 1 }}>
-          {/* Table Headers */}
           <View style={styles.tableHeader}>
             <Text style={styles.tableHeaderText}>Date</Text>
             <Text style={styles.tableHeaderText}>Time</Text>
@@ -482,7 +461,6 @@ function HistoryScreenContent() {
             <Text style={styles.tableHeaderText}>Ammonia</Text>
           </View>
 
-          {/* LIST */}
           {loading && page === 0 ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#487307" />
@@ -523,13 +501,11 @@ function HistoryScreenContent() {
   );
 }
 
-// --- MAIN EXPORT WITH PROVIDER ---
 export default function HistoryScreen() {
   return (
     <TourGuideProvider
       androidStatusBarVisible={true}
       backdropColor="rgba(0, 0, 0, 0.7)"
-      // Optional: Change tooltip styles here
       borderRadius={10}
       tooltipStyle={{ borderRadius: 12, paddingTop: 15 }}
       preventOutsideInteraction={true} 
@@ -542,7 +518,6 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
    
-  // --- MATCHED HEADER STYLES ---
   header: {
     backgroundColor: "#487307",
     paddingTop: 30,
@@ -556,7 +531,6 @@ const styles = StyleSheet.create({
   subText: { fontSize: 14, color: "#d8f2c1", marginTop: 4, marginLeft: 15 },
   divider: { height: 1, backgroundColor: "#fff", marginTop: 12, opacity: 0.5 },
    
-  // --- CONTENT STYLES ---
   titleRow: { 
     flexDirection: "row", 
     alignItems: "center", 
@@ -593,7 +567,6 @@ const styles = StyleSheet.create({
   emptySubText: { fontSize: 14, color: "#999", textAlign: "center", marginTop: 5 },
   footerContainer: { paddingVertical: 20, alignItems: "center", justifyContent: "center" },
 
-  // --- MODAL STYLES ---
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

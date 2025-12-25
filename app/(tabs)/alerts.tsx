@@ -17,7 +17,6 @@ import { listAlerts } from "@/features/alerts/api";
 import { DEVICE_ID } from "@/constants";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// --- TOURGUIDE IMPORTS ---
 import {
   TourGuideProvider,
   TourGuideZone,
@@ -34,7 +33,6 @@ type AlertRow = {
 
 type FilterType = "all" | "critical" | "warning";
 
-// --- MAIN CONTENT COMPONENT ---
 function AlertsScreenContent() {
   const { start, canStart } = useTourGuideController();
   const insets = useSafeAreaInsets();
@@ -49,9 +47,7 @@ function AlertsScreenContent() {
 
   const deviceId = DEVICE_ID;
 
-  // Auto-start or start on demand
   useEffect(() => {
-    // if (canStart) start(); 
   }, [canStart]); 
 
   useEffect(() => {
@@ -90,7 +86,6 @@ function AlertsScreenContent() {
     setExpandedAlert((prev) => (prev === alertId ? null : alertId));
   };
 
-  // --- LOGIC HELPERS ---
   const formatDisplayMessage = (alert: AlertRow) => {
     const msg = alert.message;
     const type = (alert.alert_type || "").toLowerCase();
@@ -202,7 +197,6 @@ function AlertsScreenContent() {
     );
   };
 
-  // --- RENDER ALERT CARD ---
   const renderAlertCard = (alert: AlertRow, index: number) => {
     const config = getAlertConfig(alert);
     const instructions = getInstructions(alert);
@@ -246,13 +240,11 @@ function AlertsScreenContent() {
         )}
 
         <View style={styles.cardFooter}>
-          {/* ZONE 3: View Details (Only on first card) */}
           {isFirst ? (
             <TourGuideZone
               zone={3}
               text="Tap 'View Details' to expand recommended actions."
             >
-              {/* IMPORTANT: Wrap with View collapsable=false for measurement */}
               <View style={{ flexDirection: 'row', alignItems: 'center' }} collapsable={false}>
                 <Text style={[styles.seeMoreText, { color: config.color }]}>{isExpanded ? "Hide Details" : "View Details"}</Text>
                 <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={14} color={config.color} style={{ marginLeft: 4, marginTop: 1 }} />
@@ -271,28 +263,24 @@ function AlertsScreenContent() {
 
   const filteredAlerts = getFilteredAlerts();
 
-  // Split alerts for Zone 2 Logic (Highlight at least 2)
-  const firstBatch = filteredAlerts.slice(0, 2); // First 2 items
-  const restBatch = filteredAlerts.slice(2);     // The rest
+  const firstBatch = filteredAlerts.slice(0, 2);
+  const restBatch = filteredAlerts.slice(2); 
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      {/* --- HEADER --- */}
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
           <View style={{ width: 60, height: 55 }}>
               <Image source={require("../../assets/images/swinetrack-logo.png")} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
           </View>
 
-          {/* ZONE 4: Help Button */}
           <TourGuideZone
             zone={4}
             text="Tap this button anytime to replay this tutorial."
             shape="circle"
           >
-            {/* IMPORTANT: Wrap with View collapsable=false for measurement */}
             <TouchableOpacity onPress={() => start()} style={{ padding: 5 }}>
                <Ionicons name="information-circle-outline" size={28} color="#fff" />
             </TouchableOpacity>
@@ -304,15 +292,12 @@ function AlertsScreenContent() {
         <View style={styles.divider} />
       </View>
 
-      {/* --- ZONE 1: FILTER BUTTONS --- */}
       <View style={styles.filterContainer}>
         <TourGuideZone
           zone={1}
           text="Use these buttons to filter alerts by severity (Critical, Warning, or All)."
           borderRadius={23}
-          // Remove flex: 1 here to avoid stretching issues if not needed
         >
-            {/* IMPORTANT: Wrap with View collapsable=false for measurement */}
             <View style={styles.filterWrapper} collapsable={false}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
                     {renderFilterButton("All", "all")}
@@ -339,21 +324,18 @@ function AlertsScreenContent() {
           </View>
         ) : (
           <>
-            {/* ZONE 2: ALERT CARDS (HIGHLIGHT AT LEAST 2) */}
             {firstBatch.length > 0 && (
               <TourGuideZone
                 zone={2}
                 text="These are your recent alerts. Review the severity and time."
                 borderRadius={16}
               >
-                {/* IMPORTANT: Wrap with View collapsable=false for measurement */}
                 <View collapsable={false}>
                   {firstBatch.map((alert, index) => renderAlertCard(alert, index))}
                 </View>
               </TourGuideZone>
             )}
 
-            {/* RENDER REST OF ALERTS NORMALLY */}
             {restBatch.map((alert, index) => renderAlertCard(alert, index + 2))}
           </>
         )}
@@ -362,7 +344,6 @@ function AlertsScreenContent() {
   );
 }
 
-// --- ROOT COMPONENT ---
 export default function AlertsScreen() {
   return (
     <TourGuideProvider
@@ -370,7 +351,6 @@ export default function AlertsScreen() {
       backdropColor="rgba(0, 0, 0, 0.7)"
       tooltipStyle={{ borderRadius: 12, paddingTop: 10 }}
       
-      // THIS IS THE KEY FIX FOR VERTICAL OFFSET ISSUES:
       androidStatusBarVisible={true} 
       
       labels={{

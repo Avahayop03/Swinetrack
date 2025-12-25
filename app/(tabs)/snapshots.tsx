@@ -17,11 +17,6 @@ import { DEVICE_ID } from "@/constants";
 import { useSnapshots } from "@/features/snapshots/useSnapshots";
 import { ThermalImage } from "@/components/ThermalImage";
 
-
-/* ------------------------------------------------------------------ */
-/* Helpers */
-/* ------------------------------------------------------------------ */
-
 const clampStartOfDay = (d: Date) => {
     const x = new Date(d);
     x.setHours(0, 0, 0, 0);
@@ -51,10 +46,6 @@ const downsamplePairs = (
     for (let i = 0; i < items.length; i += step) out.push(items[i]);
     return out;
 };
-
-/* ------------------------------------------------------------------ */
-/* Snapshot Card */
-/* ------------------------------------------------------------------ */
 
 const SnapshotCard = memo(({ snapshot }: { snapshot: any }) => {
     const [showThermal, setShowThermal] = useState(true);
@@ -137,10 +128,6 @@ const SnapshotCard = memo(({ snapshot }: { snapshot: any }) => {
     );
 });
 
-/* ------------------------------------------------------------------ */
-/* Screen */
-/* ------------------------------------------------------------------ */
-
 export default function SnapshotLibrary() {
     const SUMMARY_MAX_SNAPSHOTS = 1000;
 
@@ -201,7 +188,6 @@ const normalizedRange = useMemo(() => {
 
     return { start, end };
 }, []);
-
 
     const summary = useMemo(() => {
         const startMs = normalizedRange.start.getTime();
@@ -328,7 +314,6 @@ const normalizedRange = useMemo(() => {
                 <View style={styles.divider} />
             </View>
 
-            {/* --- INNER TABS (Snapshot Diary / Summary) --- */}
             <View style={styles.tabs}>
                 <TouchableOpacity onPress={() => setActiveTab("diary")}>
                     <Text style={[styles.tabText, activeTab === "diary" && styles.activeTab]}>
@@ -392,7 +377,6 @@ const normalizedRange = useMemo(() => {
                     contentContainerStyle={{ padding: 16, paddingBottom: 40 + insets.bottom }}
                 >
 
-                    {/* --- SUMMARY STATS --- */}
                     <View style={styles.summaryCard}>
                         <Text style={styles.summaryTitle}>Temperature Summary (MLX)</Text>
 
@@ -434,7 +418,6 @@ const normalizedRange = useMemo(() => {
                         )}
                     </View>
 
-                    {/* --- TEMPERATURE DISTRIBUTION --- */}
                     <View style={styles.summaryCard}>
                         <Text style={styles.summaryTitle}>Temperature Distribution</Text>
 
@@ -483,7 +466,6 @@ const normalizedRange = useMemo(() => {
                     </View>
 
 
-                    {/* --- SPIKES LIST --- */}
                     <View style={styles.summaryCard}>
                         <Text style={styles.summaryTitle}>Temperature Spikes</Text>
                         <Text style={styles.spikeHint}>
@@ -515,10 +497,6 @@ const normalizedRange = useMemo(() => {
     );
 }
 
-/* ------------------------------------------------------------------ */
-/* Styles */
-/* ------------------------------------------------------------------ */
-
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#fff" },
 
@@ -538,7 +516,6 @@ const styles = StyleSheet.create({
     tabText: { fontSize: 14, color: "#555", fontWeight: "500" },
     activeTab: { fontWeight: "bold", borderBottomWidth: 2, borderBottomColor: "#487307", color: "#487307" },
 
-    /* Summary UI */
     summaryCard: {
         backgroundColor: "#fff",
         borderRadius: 12,
@@ -598,7 +575,6 @@ const styles = StyleSheet.create({
 
     noDataText: { fontSize: 13, color: "#777" },
 
-    /* Snapshot list styles (same feel as your index.tsx) */
     snapshotCard: {
         backgroundColor: "#fff",
         borderRadius: 12,

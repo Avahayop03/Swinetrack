@@ -1,4 +1,3 @@
-// src/features/live/api.ts
 import { supabase } from "@/lib/supabase";
 
 export async function getLiveFrame(deviceId: string, _ttlSec = 10) {

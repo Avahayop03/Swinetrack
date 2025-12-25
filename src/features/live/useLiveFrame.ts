@@ -1,4 +1,3 @@
-// src/features/live/useLiveFrame.ts
 import { useEffect, useState } from "react";
 import { getLiveFrame } from "./api";
 

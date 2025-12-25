@@ -49,14 +49,13 @@ export function LiveStreamView({ streamUrl, style, onLoadStart, onError }: Props
       <WebView
         originWhitelist={['*']}
         source={{ html: htmlContent }}
-        style={{ flex: 1, backgroundColor: '#222' }} // Match body background
+        style={{ flex: 1, backgroundColor: '#222' }}
         scrollEnabled={false}
         mixedContentMode="always"
         javaScriptEnabled={true}
         
-        // --- CRITICAL FIXES ---
-        androidLayerType="software" // Fixes black screen on MJPEG streams
-        opacity={0.99} // Hack to force React Native to render WebView content on some Androids
+        androidLayerType="software" 
+        opacity={0.99}
         
         onMessage={(event) => {
           try {
@@ -73,7 +72,7 @@ const styles = StyleSheet.create({
   container: {
     overflow: 'hidden',
     backgroundColor: '#000',
-    flex: 1, // Ensure it fills the parent
+    flex: 1,
   },
   loading: {
     ...StyleSheet.absoluteFillObject,

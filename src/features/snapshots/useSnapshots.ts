@@ -13,7 +13,6 @@ export function useSnapshots(deviceId: string) {
     try {
       setLoading(true);
 
-      // First test the connection if we haven't already
       if (!connectionTested) {
         console.log("Testing database connection...");
         const connectionOk = await testSnapshotsConnection(deviceId);

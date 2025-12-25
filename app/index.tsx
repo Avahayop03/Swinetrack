@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import { supabase } from "@/lib/supabase";
 
-// Start or stop session auto-refresh
 AppState.addEventListener("change", (state) => {
   if (state === "active") {
     supabase.auth.startAutoRefresh();
@@ -90,7 +89,6 @@ export default function WelcomePage() {
       </View>
 
       <Animated.View style={[styles.bottomSection, { opacity: bottomOpacity }]}>
-        {/* REPLACED BUTTONS HERE */}
         <TouchableOpacity
           style={styles.createAccountButton}
           onPress={() => router.replace("/(tabs)")}

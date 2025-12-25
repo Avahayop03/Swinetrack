@@ -26,13 +26,10 @@ import { fetchReadings, ReadingRow } from "@/features/readings/api";
 import { useKeepAwake } from 'expo-keep-awake';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// --- RN-TOURGUIDE IMPORTS ---
 import { TourGuideProvider, TourGuideZone, useTourGuideController } from "rn-tourguide";
 
 const STREAM_URL = "http://192.168.1.102:8787/thermal-stream";
 const OPTICAL_URL = "http://192.168.1.103:81/stream";
-
-// --- HELPER COMPONENTS ---
 
 type LiveStreamProps = {
     streamUrl: string;
@@ -147,7 +144,6 @@ const SnapshotCard = memo(({ snapshot }: { snapshot: any }) => {
     );
 });
 
-// --- MAIN COMPONENT CONTENT ---
 function MainScreenContent() {
     const { start } = useTourGuideController();
 
@@ -238,7 +234,6 @@ setAmmoniaHistory(
         return <SnapshotCard snapshot={snapshot} />;
     }, []);
 
-    // Function to start the tour with a slight delay for better layout measurement
     const startTourWithDelay = () => {
         setTimeout(() => {
             start();
@@ -248,14 +243,12 @@ setAmmoniaHistory(
 
     return (
         <View style={styles.container}>
-            {/* --- HEADER --- */}
             <View style={styles.header}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                     <View style={{ width: 60, height: 55 }}>
                         <Image source={require("../../assets/images/swinetrack-logo.png")} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
                     </View>
 
-                    {/* ZONE 4: HELP ICON (Last step) */}
                     <TourGuideZone
                         zone={4}
                         text="Tap this question mark anytime to replay this tour."
@@ -264,7 +257,6 @@ setAmmoniaHistory(
                         <TouchableOpacity
                             onPress={startTourWithDelay}
                             style={{ padding: 8, margin: -8 }}
-                        /*collapsable={false}*/
                         >
                             <Ionicons name="information-circle-outline" size={28} color="#fff" />
                         </TouchableOpacity>
@@ -279,7 +271,6 @@ setAmmoniaHistory(
             {activeTab === "live" ? (
                 <ScrollView style={styles.scrollArea} contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}>
 
-                    {/* ZONE 2: LIVE FEED BOX (Video area) */}
                     <TourGuideZone
                         zone={2}
                         text="This is your main monitor. It shows live Thermal or Optical video. The swap button is in the corner."
@@ -287,12 +278,10 @@ setAmmoniaHistory(
                         maskOffset={-5}
                         style={{ padding: 4 }}
                     >
-                        {/* Wrapper view must have collapsable=false */}
                         <View style={styles.feedBox} collapsable={false}>
                             <TouchableOpacity
                                 style={styles.toggleButton}
                                 onPress={handleToggleView}
-                            /*collapsable={false}*/
                             >
                                 <MaterialCommunityIcons name={viewMode === 'thermal' ? "camera-iris" : "thermometer"} size={20} color="#fff" />
                                 <Text style={styles.toggleButtonText}>{viewMode === 'thermal' ? " View Camera" : "View Thermal"}</Text>
@@ -326,7 +315,6 @@ setAmmoniaHistory(
                         </View>
                     </TourGuideZone>
 
-                    {/* ZONE 3: STATUS CARDS */}
                     <TourGuideZone
                         zone={3}
                         text="Pen Status: See graphs and current values for Temperature, Humidity, and Ammonia."
@@ -363,7 +351,6 @@ setAmmoniaHistory(
     );
 }
 
-// --- ROOT COMPONENT ---
 export default function Index() {
     return (
         <TourGuideProvider
