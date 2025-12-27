@@ -44,13 +44,13 @@ const LiveStreamView = React.memo(({ streamUrl, onLoadStart, onError }: LiveStre
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
-  body { margin: 0; padding: 0; background-color: #000; height: 10vh; width: 10vw; display: flex; justify-content: center; align-items: center; overflow: hidden; }
-  img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
+  body { margin: 0; padding: 0; background-color: #000; height: 10vh; width: 10vw; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+  img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
 </style>
 </head>
 <body>
 <script>
-  function sendLog(type, msg) { window.ReactNativeWebView.postMessage(JSON.stringify({ type: type, message: msg })); }
+  function sendLog(type, msg) { window.ReactNativeWebView.postMessage(JSON.stringify({ type: type, message: msg })); }
 </script>
 <img src="${streamUrl}" onload="if(this.naturalWidth > 0) { sendLog('SUCCESS', 'Image loaded'); } else { sendLog('WARN', 'Image loaded 0'); }" onerror="sendLog('IMG_ERROR', 'Image failed')" />
 </body>
@@ -180,11 +180,10 @@ function MainScreenContent() {
     useEffect(() => {
         let interval: number;
         const loadReadings = async () => {
-            setLoadingReadings(true);
             try {
                 const now = new Date();
                 const futureBuffer = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-                const from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                const from = new Date(0);
                 const data = await fetchReadings(deviceId, from.toISOString(), futureBuffer.toISOString(), 2000);
 
                 if (data && data.length > 0) {
@@ -196,16 +195,16 @@ function MainScreenContent() {
                     const chartContextData = sortedNewestFirst.filter((r: any) => new Date(r.ts || r.created_at).getTime() >= oneHoursBeforeLast);
                     const sortedOldestFirst = [...chartContextData].reverse();
                     setTempHistory(
-    downsample(sortedOldestFirst.map(r => r.t_avg_c ?? 0), 30)
-);
+                        downsample(sortedOldestFirst.map(r => r.t_avg_c ?? 0), 30)
+                    );
 
-setHumidityHistory(
-    downsample(sortedOldestFirst.map(r => r.humidity_rh ?? 0), 30)
-);
+                    setHumidityHistory(
+                        downsample(sortedOldestFirst.map(r => r.humidity_rh ?? 0), 30)
+                    );
 
-setAmmoniaHistory(
-    downsample(sortedOldestFirst.map(r => (r.gas_res_ohm ?? 0) / 1000), 30)
-);
+                    setAmmoniaHistory(
+                        downsample(sortedOldestFirst.map(r => (r.gas_res_ohm ?? 0) / 1000), 30)
+                    );
 
                 }
             } catch (err) { console.error("[POLL] Error fetching readings:", err); } finally { setLoadingReadings(false); }

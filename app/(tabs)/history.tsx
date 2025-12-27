@@ -65,8 +65,7 @@ function HistoryScreenContent() {
       setError(null);
 
       const toDate = new Date();
-      const fromDate = new Date();
-      fromDate.setDate(fromDate.getDate() - 7); 
+      const fromDate = new Date(0); 
 
       const offset = pageNumber * PAGE_SIZE;
 
@@ -486,7 +485,7 @@ function HistoryScreenContent() {
               data={readings}
               renderItem={renderItem}
               keyExtractor={(item, index) => `${item.id}-${index}`}
-             contentContainerStyle={{ paddingBottom: 20 }}
+              contentContainerStyle={{ paddingBottom: 20 }}
               showsVerticalScrollIndicator={false}
               onEndReached={handleLoadMore}
               onEndReachedThreshold={0.5}
